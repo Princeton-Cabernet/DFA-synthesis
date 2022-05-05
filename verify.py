@@ -4,12 +4,22 @@ import collections, itertools
 import warnings
 import re
 
-def verify_dfa(dfa):
+def verify_dfa(dfa, require_accepting=False):
 	"Verify that the DFA is fully specified, with all transitions defined for all states."
+	"Note that if the accept state is present, it will be checked. However, missing accepting is allowed unless require_accepting=True."
+
 	states=dfa['states']
 	sigma=dfa['sigma']
 	transitions=dfa['transitions']
 	initial=dfa['initial']
+	if 'accepting' in dfa:
+		accepting=dfa['accepting']
+		if require_accepting and len(accepting)==0:
+			raise ValueError(f"The list of accepting state is empty, yet require_accepting is True.")
+	else:
+		accepting=[]
+		if require_accepting:
+			raise ValueError(f"The 'accepting' definition not found in dfa, yet require_accepting is True.")
 	#sanity check: no duplicate state
 	if len(set(states))!=len(states):
 		raise ValueError(f"Duplicate keys in State? {states}")
@@ -17,6 +27,10 @@ def verify_dfa(dfa):
 		raise ValueError(f"Duplicate keys in Sigma? {sigma}")
 	if initial not in states:
 		raise ValueError(f"Unknown initial state: {initial}")
+	for s in accepting:
+		if s not in states:
+			raise ValueError(f"Unknown accepting state: {s}")
+
 	#check character set
 	for s in states:
 		if not re.fullmatch(r'[A-Za-z0-9\-\_]+', s, flags=0):
