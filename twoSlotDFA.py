@@ -32,7 +32,7 @@ class Pred:
 class Arith:
     def __init__(reg_act_id, arith_id, bitvecsize):
         self.reg_act_id = reg_act_id
-        self.pred_id = arith_id
+        self.arith_id = arith_id
         self.op = Const('arith_op_%d_%d'%reg_act_id,arith_id, ArithOp)
         self.sym_opt = Const('arith_sym_opt_%d_%d'%reg_act_id,arith_id, SymbolOpt)
         self.sym_const = BitVec('arith_sym_const_%d_%d'%reg_act_id,arith_id, bitvecsize)

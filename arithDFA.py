@@ -13,6 +13,7 @@ def createDFA(input, bitvecsize):
     constraints = []
 
     # per RegAct
+    
     list_predop = [Const('predop_%d' % i, PredOp) for i in range(num_regact)]
     list_predconst = [BitVec('predconst_%d' % i, bitvecsize) for i in range(num_regact)]
     list_pred_has_state = [Bool('pred_has_state_%d' % i) for i in range(num_regact)]
