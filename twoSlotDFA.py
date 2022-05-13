@@ -5,7 +5,7 @@ import itertools
 
 ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
 PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
-LogicOp, (left, _, booland, boolor) = EnumSort('LogicOp', ('left', 'right', 'booland', 'boolor'))
+LogicOp, (left, booland, boolor) = EnumSort('LogicOp', ('left', 'booland', 'boolor'))
 StateOpt, (state_1, state_2, stateconstant) = EnumSort('StateOpt', ('state_1', 'state_2', 'stateconstant')) 
 SymbolOpt, (sym_1, sym_2, symconstant) = EnumSort('SymbolOpt', ('sym_1', 'sym_2', 'symconstant'))
 
@@ -17,6 +17,9 @@ bitvecsize = 4
 RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 zero = BitVecVal(0, bitvecsize)
 
+def access(model, val):
+    return model[val].as_long() if (model[val] != None) else None
+
 class Pred:
     def __init__(self, reg_act_id, pred_id):
         self.reg_act_id = reg_act_id
@@ -27,8 +30,12 @@ class Pred:
         self.state_opt = Const('pred_state_opt_%d_%d' % (reg_act_id, pred_id), StateOpt)
 
     def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        pred_sym = If(self.sym_opt == symconstant, zero, If(self.sym_opt == sym_1, symbol_1, symbol_2))
-        pred_state = If(self.state_opt == stateconstant, zero, If(self.state_opt == state_1, pre_state_1, pre_state_2))
+        pred_sym = If(self.sym_opt == sym_1, symbol_1, 
+                   If(self.sym_opt == sym_2, symbol_2, 
+                   If(self.sym_opt == symconstant, zero, zero)))
+        pred_state = If(self.state_opt == state_1, pre_state_1, 
+                     If(self.state_opt == state_2, pre_state_2, 
+                     If(self.state_opt == stateconstant, zero, zero)))
         pred_arg = pred_state + pred_sym + self.const
         predicate_eq = If(self.op == eq, pred_arg == zero, True)
         predicate_ge = If(self.op == ge, pred_arg >= zero, True)
@@ -38,9 +45,9 @@ class Pred:
 
     def toJSON(self, model):
         config = { "op": str(model[self.op]),
-                   "const": model[self.const].as_long(),
-                   "sym_opt": model[self.sym_opt].as_long(),
-                   "state_opt": model[self.state_opt].as_long() }
+                   "const": access(model, self.const),
+                   "sym_opt": str(model[self.sym_opt]),
+                   "state_opt": str(model[self.state_opt]) }
         return config
 
 class Arith:
@@ -54,19 +61,23 @@ class Arith:
         self.state_const = BitVec('arith_state_const_%d_%d'% (reg_act_id, arith_id), bitvecsize)
     
     def makeArithCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        arith_sym = If(self.sym_opt == symconstant, self.sym_const, If(self.sym_opt == sym_1, symbol_1, symbol_2))
-        arith_state = If(self.state_opt == stateconstant, self.state_const, If(self.state_opt == state_1, pre_state_1, pre_state_2))
+        arith_sym = If(self.sym_opt == sym_1, symbol_1, 
+                    If(self.sym_opt == sym_2, symbol_2, 
+                    If(self.sym_opt == symconstant, self.sym_const, zero)))
+        arith_state = If(self.state_opt == state_1, pre_state_1, 
+                      If(self.state_opt == state_2, pre_state_2, 
+                      If(self.state_opt == stateconstant, self.state_const, zero)))
         arithres = If(self.op == plus, arith_state + arith_sym, 
                    If(self.op == bitxor, arith_state ^ arith_sym, 
-                   arith_state & arith_sym))
+                   If(self.op == bitand, arith_state & arith_sym, zero)))
         return arithres
 
     def toJSON(self, model):
         config = { "op": str(model[self.op]),
                    "sym_opt": str(model[self.sym_opt]),
-                   "sym_const": model[self.sym_const].as_long(),
+                   "sym_const": access(model, self.sym_const),
                    "state_opt": str(model[self.state_opt]),
-                   "state_const": model[self.state_const].as_long() }
+                   "state_const": access(model, self.state_const) }
         return config
 
 class RegAct:
@@ -79,34 +90,37 @@ class RegAct:
     
     def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2, post_state_1_is_main):
         leftCond = self.preds[0].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
-        rightCond = self.preds[0].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
-        predCond = If(self.logic_op == left, leftCond, If(self.logic_op == booland, And(leftCond, rightCond), Or(leftCond, rightCond)))
-        arithConds = [a.makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2) for a in self.ariths]
-        branchTrue = And(post_state_1 == arithConds[0], post_state_2 == arithConds[1])
-        branchFalse = And(post_state_1 == arithConds[2], post_state_2 == arithConds[3])
+        rightCond = self.preds[1].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
+        predCond = If(self.logic_op == left, leftCond, 
+                   If(self.logic_op == booland, And(leftCond, rightCond), 
+                   If(self.logic_op == boolor, Or(leftCond, rightCond), False)))
+        arithExprs = [a.makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2) for a in self.ariths]
+        branchTrue = And(post_state_1 == arithExprs[0], post_state_2 == arithExprs[1])
+        branchFalse = And(post_state_1 == arithExprs[2], post_state_2 == arithExprs[3])
 
         return And(If(predCond, branchTrue, branchFalse), self.state_1_is_main == post_state_1_is_main)
 
     def toJSON(self, model):
         config = { "logic_op" : str(model[self.logic_op]), 
-                   "preds" : [p.toJSON() for p in self.preds], 
-                   "ariths" : [a.toJSON() for a in self.ariths] }
+                   "preds" : [p.toJSON(model) for p in self.preds], 
+                   "ariths" : [a.toJSON(model) for a in self.ariths],
+                   "state_1_is_main" : bool(model[self.state_1_is_main]) }
         return config
 
-def toJSON(symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, reg_acts):
+def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, reg_acts):
     config = {}
-    config["symbols_1"] = { sym : val.as_long() for sym, val in symbols_1 }
-    config["symbols_2"] = { sym : val.as_long() for sym, val in symbols_2 }
-    config["regact_id"] = { sym : val.as_long() for sym, val in regact_id }
-    config["states_1"] = { state : val.as_long() for state, val in states_1 }
-    if not states_2.empty():
-        config["states_2"] = { state : val.as_long() for state, val in states_2 }
-        config["states_1_is_main"] = { state : val.is_true() for state, val in states_1_is_main }
-    config["reg_acts"] = [r.toJSON() for r in reg_acts]
+    config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
+    config["symbols_2"] = { sym : access(model, val) for sym, val in symbols_2.items() }
+    config["regact_id"] = { sym : int(str(model[val]).split('_')[1]) for sym, val in regact_id.items() }
+    config["states_1"] = { state : access(model, val) for state, val in states_1.items() }
+    if len(states_2) != 0:
+        config["states_2"] = { state : access(model, val) for state, val in states_2.items() }
+        config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
+    config["reg_acts"] = [r.toJSON(model) for r in reg_acts]
     return config
 
-
 def createDFA(input):
+    # constraints
     constraints = []
 
     # per RegAct
@@ -134,39 +148,44 @@ def createDFA(input):
 
     state_init_symbol = input["initial"]
     main_state_init = If(states_1_is_main[state_init_symbol], states_1[state_init_symbol], states_2[state_init_symbol])
-    constraints.append(main_state_init == BitVecVal(0, bitvecsize))
+    constraints.append(main_state_init == zero)
     for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
         if s1 != s2: 
             main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1])
             main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2])
             constraints.append(main_state_1 != main_state_2)
 
-    #per transition
-    for transition in input["transitions"]:
-        pre_state_1 = states_1[transition[0]]
-        pre_state_2 = states_2[transition[0]]
-        symbol_1 = symbols_1[transition[1]]
-        symbol_2 = symbols_2[transition[1]]
-        post_state_1 = states_1[transition[2]]
-        post_state_2 = states_2[transition[2]]
-        post_state_1_is_main = states_1_is_main[transition[2]]
-
-        for i in range(num_regact):
-            constraints.append(If(regact_id[transition[1]] == choices[i], 
-                                  reg_acts[i].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
-                                                                 post_state_1, post_state_2, post_state_1_is_main), 
-                                  True))
     s = Solver()
     s.add(And(constraints))
+    reg_adding = 0
+    while True:
+        #per transition
+        for transition in input["transitions"]:
+            pre_state_1 = states_1[transition[0]]
+            pre_state_2 = states_2[transition[0]]
+            symbol_1 = symbols_1[transition[1]]
+            symbol_2 = symbols_2[transition[1]]
+            post_state_1 = states_1[transition[2]]
+            post_state_2 = states_2[transition[2]]
+            post_state_1_is_main = states_1_is_main[transition[2]]
 
-    if (s.check() == unsat):
-        print("unsat")
-    else:
-        print("sat")
-        m = s.model()
-        # print(m)
-        config = toJSON(symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, reg_acts)
-        print(json.dumps(config))
+            s.add(If(regact_id[transition[1]] == choices[reg_adding], 
+                     reg_acts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
+                                                             post_state_1, post_state_2, post_state_1_is_main), 
+                     True))
+        if s.check() == sat:
+            print("Sat with %d regacts." % (reg_adding + 1))
+            model = s.model()
+            print(model)
+            config = toJSON(model, symbols_1, symbols_2, regact_id, 
+                            states_1, states_2, states_1_is_main, reg_acts[: reg_adding + 1])
+            print(json.dumps(config))
+            break
+        elif reg_adding >= num_regact - 1:
+            print("Unsat")
+            break
+        else:
+            reg_adding += 1
 
 def main():
     if (len(sys.argv) < 2):
