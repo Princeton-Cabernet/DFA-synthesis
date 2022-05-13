@@ -35,7 +35,7 @@ class Pred:
         predicate_ge = If(self.op == ge, pred_arg >= zero, False)
         predicate_le = If(self.op == le, pred_arg <= zero, False)
         predicate_neq = If(self.op == neq, pred_arg != zero, False)
-        return Or(predicate_eq, predicate_ge, predicate_le, predicate_neq)
+        return And(predicate_eq, predicate_ge, predicate_le, predicate_neq)
 
 class Arith:
     def __init__(self, reg_act_id, arith_id):
@@ -75,7 +75,7 @@ def createDFA(input):
 
 
     # per RegAct
-    reg_acts = [RegAct(i) for i in range(num_regact)]
+    reg_acts = [RegAct(0)]
 
     # per symbol
     symbols_1 = {}
@@ -99,33 +99,36 @@ def createDFA(input):
 
     state_init_symbol = input["initial"]
     main_state_init = If(states_1_is_main[state_init_symbol], states_1[state_init_symbol], states_2[state_init_symbol])
-    constraints.append(main_state_init == BitVecVal(0, bitvecsize))
+    constraints.append(main_state_init == zero)
     for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
         if s1 != s2: 
             main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1])
             main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2])
             constraints.append(main_state_1 != main_state_2)
 
-    #per transition
-    for transition in input["transitions"]:
-        pre_state_1 = states_1[transition[0]]
-        pre_state_2 = states_2[transition[0]]
-        symbol_1 = symbols_1[transition[1]]
-        symbol_2 = symbols_2[transition[1]]
-        post_state_1 = states_1[transition[2]]
-        post_state_2 = states_2[transition[2]]
-
-        for i in range(num_regact):
-            constraints.append(If(regact_id[transition[1]] == choices[i], reg_acts[i].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2), True))
     s = Solver()
     s.add(And(constraints))
-
-    if (s.check() == unsat):
-        print("unsat")
-    else:
-        print("sat, check output.txt")
-        m = s.model()
-        print(m)
+    reg_adding = 0
+    while True:
+        #per transition
+        for transition in input["transitions"]:
+            pre_state_1 = states_1[transition[0]]
+            pre_state_2 = states_2[transition[0]]
+            symbol_1 = symbols_1[transition[1]]
+            symbol_2 = symbols_2[transition[1]]
+            post_state_1 = states_1[transition[2]]
+            post_state_2 = states_2[transition[2]]
+            s.add(If(regact_id[transition[1]] == choices[reg_adding], reg_acts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2), True))
+        if s.check() == sat:
+            print("sat with %d regacts, check output.txt"%reg_adding)
+            m = s.model()
+            print(m)
+            break
+        elif reg_adding < num_regact-1:
+            print("Unsat")
+            break
+        else:
+            reg_adding += 1
 
 
 def main():
