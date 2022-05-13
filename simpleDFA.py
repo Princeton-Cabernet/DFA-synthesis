@@ -5,6 +5,7 @@ import itertools
 ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
 PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
 
+
 def createDFA(input, bitvecsize):
     symbols_pred = {}
     symbols_val = {}
@@ -13,11 +14,11 @@ def createDFA(input, bitvecsize):
     predop = Const('predop', PredOp)
 
     for symbol in input["sigma"]:
-        symbols_pred[symbol] = BitVec(symbol+"pred", bitvecsize)
-        symbols_val[symbol] = BitVec(symbol+"val", bitvecsize)
+        symbols_pred[symbol] = BitVec("pred_%s" % symbol, bitvecsize)
+        symbols_val[symbol] = BitVec("val_%s" % symbol, bitvecsize)
 
     for state in input["states"]:
-        states[state] = BitVec(state, bitvecsize)
+        states[state] = BitVec("state_%s" % state, bitvecsize)
     constraints.append(states[input["initial"]] == BitVecVal(0, bitvecsize))
     for s1, s2 in itertools.product(states.keys(), states.keys()):
         if s1 != s2: constraints.append(states[s1] != states[s2])

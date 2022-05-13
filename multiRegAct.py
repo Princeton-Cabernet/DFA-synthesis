@@ -21,14 +21,14 @@ def createDFA(input, bitvecsize):
     symbols_val = {}
     regact_id = {}
     for symbol in input["sigma"]:
-        symbols_pred[symbol] = BitVec(symbol+"pred", bitvecsize)
-        symbols_val[symbol] = BitVec(symbol+"val", bitvecsize)
-        regact_id[symbol] = Const(symbol+"choice", RegActChoice)
+        symbols_pred[symbol] = BitVec("pred_%s" % symbol, bitvecsize)
+        symbols_val[symbol] = BitVec("val_%s" % symbol, bitvecsize)
+        regact_id[symbol] = Const("regact_%s" % symbol, RegActChoice)
 
     # per state
     states = {}
     for state in input["states"]:
-        states[state] = BitVec(state, bitvecsize)
+        states[state] = BitVec("state_%s" % state, bitvecsize)
     constraints.append(states[input["initial"]] == BitVecVal(0, bitvecsize))
     for s1, s2 in itertools.product(states.keys(), states.keys()):
         if s1 != s2: constraints.append(states[s1] != states[s2])

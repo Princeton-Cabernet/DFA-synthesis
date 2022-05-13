@@ -3,64 +3,62 @@ from z3 import *
 import json
 import itertools
 
-ArithOp = Datatype('ArithOp')
-ArithOp.declare('plus')
-ArithOp.declare('bitxor')
-ArithOp.declare('bitand')
-ArithOp = ArithOp.create()
+ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
+PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
+LogicOp, (left, right, booland, boolor) = EnumSort('LogicOp', ('left', 'right', 'booland', 'boolor'))
+StateOpt, (state_1, state_2, constant) = EnumSort('StateOpt', ('state_1', 'state_2', 'constant')) 
+SymbolOpt, (sym_1, sym_2, constant) = EnumSort('SymbolOpt', ('sym_1', 'sym_2', 'constant'))
 
-PredOp = Datatype('PredOp')
-PredOp.declare('eq')
-PredOp.declare('ge')
-PredOp.declare('le')
-PredOp.declare('neq')
-PredOp = PredOp.create()
+num_regact = 2
 
-LogicOp = Datatype('LogicOp')
-LogicOp.declare('left')
-LogicOp.declare('right')
-LogicOp.declare('booland')
-LogicOp.declare('boolor')
-LogicOp = LogicOp.create()
+RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 
-StateOpt = Datatype('StateOpt')
-StateOpt.declare('state_1')
-StateOpt.declare('state_2')
-StateOpt.declare('constant')
-StateOpt = StateOpt.create()
-
-SymbolOpt = Datatype('SymbolOpt')
-SymbolOpt.declare('sym_1')
-SymbolOpt.declare('sym_2')
-SymbolOpt.declare('constant')
-SymbolOpt = SymbolOpt.create()
-
-num_regact = 1
-
-RegActChoice = Datatype('RegActChoice')
-for i in range(num_regact):
-    RegActChoice.declare('choose_%d' % i)
-RegActChoice = RegActChoice.create()
 
 num_pred = 2
 num_arith = 4
 
+class Pred:
+    def __init__(reg_act_id, pred_id, bitvecsize):
+        self.reg_act_id = reg_act_id
+        self.pred_id = pred_id
+        self.op = Const('pred_op_%d_%d'%reg_act_id,pred_id, PredOp)
+        self.const = BitVec('pred_const_%d_%d'%reg_act_id,pred_id, bitvecsize)
+        self.sym_opt = Const('pred_sym_opt_%d_%d'%reg_act_id,pred_id, SymbolOpt)
+        self.state_opt = Const('pred_state_opt_%d_%d'%reg_act_id,pred_id, StateOpt)
+
+    def makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
+        #Todo
+
+class Arith:
+    def __init__(reg_act_id, arith_id, bitvecsize):
+        self.reg_act_id = reg_act_id
+        self.pred_id = arith_id
+        self.op = Const('arith_op_%d_%d'%reg_act_id,arith_id, ArithOp)
+        self.sym_opt = Const('arith_sym_opt_%d_%d'%reg_act_id,arith_id, SymbolOpt)
+        self.sym_const = BitVec('arith_sym_const_%d_%d'%reg_act_id,arith_id, bitvecsize)
+        self.state_opt = Const('arith_state_opt_%d_%d'%reg_act_id,arith_id, StateOpt)
+        self.state_const = BitVec('arith_state_const_%d_%d'%reg_act_id,arith_id, bitvecsize)
+    
+    def makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
+        #Todo
+
+class RegAct:
+    def __init__(reg_act_id, bitvecsize):
+        self.reg_act_id = reg_act_id
+        self.logicop = Const("logicop_%d" % reg_act_id, LogicOp)
+        self.preds = [Pred(reg_act_id, i, bitvecsize) for i in range(num_pred)]
+        self.ariths = [Arith(reg_act_id, i, bitvecsize) for i in range(num_arith)]
+    
+    def makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
+        #Todo
+        
+
 def createDFA(input, bitvecsize):
     constraints = []
 
+
     # per RegAct
-    list_logicop = [Const("logicop_%d" % i, LogicOp) for i in range(num_regact)]
-
-    list_predop = [[Const('predop_%d_%d' % (i, j), PredOp) for j in range(num_pred)] for i in range(num_regact)]
-    list_pred_const = [[BitVec('pred_const_%d_%d' % (i, j), bitvecsize) for j in range(num_pred)] for i in range(num_regact)]
-    list_pred_sym_opt = [[Const('pred_sym_opt_%d_%d' % (i, j), SymbolOpt) for j in range(num_pred)] for i in range(num_regact)]
-    list_pred_state_opt = [[Const('pred_state_opt_%d_%d' % (i, j), StateOpt) for j in range(num_pred)] for i in range(num_regact)]
-
-    list_arithop = [[Const('arithop_%d_%d' % (i, j), ArithOp) for j in range(num_arith)] for i in range(num_regact)]
-    list_arith_sym_opt = [[Const('arith_sym_opt_%d_%d' % (i, j), SymbolOpt) for j in range(num_arith)] for i in range(num_regact)]
-    list_arith_sym_const = [[BitVec('arith_sym_const_%d_%d' % (i, j), bitvecsize) for j in range(num_arith)] for i in range(num_regact)]
-    list_arith_state_opt = [[Const('arith_state_opt_%d_%d' % (i, j), StateOpt) for j in range(num_arith)] for i in range(num_regact)]
-    list_arith_state_const = [[BitVec('arith_state_const_%d_%d' % (i, j), bitvecsize) for j in range(num_arith)] for i in range(num_regact)]
+    reg_acts = [RegAct(i, bitvecsize) for i in range(num_regact)]
 
     # per symbol
     symbols_1 = {}

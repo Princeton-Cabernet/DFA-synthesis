@@ -2,25 +2,12 @@ from z3 import *
 import json
 import itertools
 
-ArithOp = Datatype('ArithOp')
-ArithOp.declare('plus')
-ArithOp.declare('bitxor')
-ArithOp.declare('bitand')
-ArithOp = ArithOp.create()
-
-PredOp = Datatype('PredOp')
-PredOp.declare('eq')
-PredOp.declare('ge')
-PredOp.declare('le')
-PredOp.declare('neq')
-PredOp = PredOp.create()
+ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
+PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
 
 num_regact = 2
 
-RegActChoice = Datatype('RegActChoice')
-for i in range(num_regact):
-    RegActChoice.declare('choose_%d' % i)
-RegActChoice = RegActChoice.create()
+RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 
 def createDFA(input, bitvecsize):
     constraints = []
