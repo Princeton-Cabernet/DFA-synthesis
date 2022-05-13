@@ -2,43 +2,28 @@ from z3 import *
 import json
 import itertools
 
-ArithOp = Datatype('ArithOp')
-ArithOp.declare('plus')
-ArithOp.declare('bitxor')
-ArithOp.declare('bitand')
+ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
+PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
 
-PredOp = Datatype('PredOp')
-PredOp.declare('eq')
-PredOp.declare('ge')
-PredOp.declare('le')
-PredOp.declare('neq')
-PredOp = PredOp.create()
+num_regact = 4
 
-num_regact = 2
-
-RegActChoice = Datatype('RegActChoice')
-RegActChoice_values=[]
-for i in range(num_regact):
-    RegActChoice_values.append (
-        RegActChoice.declare('choose_%d' %i)
-    )
-RegActChoice = RegActChoice.create()
+RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 
 
 def createDFA(input, bitvecsize):
     constraints = []
     # per RegAct
     # predop = Const('predop', PredOp)
-    list_predop = [Const('predop_%d'%i, PredOp) for i in range(num_regact)]
+    choice_predops = [Const('predop_%d'%i, PredOp) for i in range(num_regact)]
     
     # per symbol
     symbols_pred = {}
     symbols_val = {}
     regact_id = {}
     for symbol in input["sigma"]:
-        symbols_pred[symbol] = BitVec(symbol, bitvecsize)
-        symbols_val[symbol] = BitVec(symbol, bitvecsize)
-        regact_id[symbol] = Const(symbol, RegActChoice)
+        symbols_pred[symbol] = BitVec(symbol+"pred", bitvecsize)
+        symbols_val[symbol] = BitVec(symbol+"val", bitvecsize)
+        regact_id[symbol] = Const(symbol+"choice", RegActChoice)
 
     # per state
     states = {}
@@ -57,21 +42,19 @@ def createDFA(input, bitvecsize):
         post_state = states[transition[2]]
 
         cond_regact=[]
-        for i in range(num_regact):
 
-            predicate_eq = If(list_predop[i] == PredOp.eq, pre_state == symbol_pred, False)
-            predicate_ge = If(list_predop[i] == PredOp.ge, pre_state >= symbol_pred, False)
-            predicate_le = If(list_predop[i] == PredOp.le, pre_state <= symbol_pred, False)
-            predicate_neq = If(list_predop[i] == PredOp.neq, pre_state != symbol_pred, False)
+
+        for i in range(num_regact):
+            predop = choice_predops[i]
+            predicate_eq = If(predop == eq, pre_state == symbol_pred, False)
+            predicate_ge = If(predop == ge, pre_state >= symbol_pred, False)
+            predicate_le = If(predop == le, pre_state <= symbol_pred, False)
+            predicate_neq = If(predop == neq, pre_state != symbol_pred, False)
             branch_changed = (post_state == symbol_val)
             branch_unchanged = (post_state == pre_state)
             predicate = Or(predicate_eq, predicate_ge, predicate_le, predicate_neq)
-
             cond_this_regact_sat = If(predicate , branch_changed, branch_unchanged)
-            if i == 0:
-                cond_regact.append(If(regact_id[transition[1]]==RegActChoice.choose_0, cond_this_regact_sat, False))
-            if i == 1:
-                cond_regact.append(If(regact_id[transition[1]]==RegActChoice.choose_1, cond_this_regact_sat, False))
+            cond_regact.append(If(regact_id[transition[1]]==choices[i], cond_this_regact_sat, False))
         constraints.append(Or(cond_regact))
 
     s = Solver()
@@ -94,4 +77,4 @@ def main():
     createDFA(input, bitvecsize)
 
 if __name__ == '__main__':
-    main()
+    main()   
