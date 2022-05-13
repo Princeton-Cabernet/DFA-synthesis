@@ -14,14 +14,11 @@ PredOp.declare('le')
 PredOp.declare('neq')
 PredOp = PredOp.create()
 
-num_regact = 2
+num_regact = 1
 
 RegActChoice = Datatype('RegActChoice')
-RegActChoice_values=[]
 for i in range(num_regact):
-    RegActChoice_values.append (
-        RegActChoice.declare('choose_%d' %i)
-    )
+    RegActChoice.declare('choose_%d' % i)
 RegActChoice = RegActChoice.create()
 
 
@@ -29,21 +26,21 @@ def createDFA(input, bitvecsize):
     constraints = []
     # per RegAct
     # predop = Const('predop', PredOp)
-    list_predop = [Const('predop_%d'%i, PredOp) for i in range(num_regact)]
+    list_predop = [Const('predop_%d' % i, PredOp) for i in range(num_regact)]
     
     # per symbol
     symbols_pred = {}
     symbols_val = {}
     regact_id = {}
     for symbol in input["sigma"]:
-        symbols_pred[symbol] = BitVec(symbol, bitvecsize)
-        symbols_val[symbol] = BitVec(symbol, bitvecsize)
-        regact_id[symbol] = Const(symbol, RegActChoice)
+        symbols_pred[symbol] = BitVec("pred_%s" % symbol, bitvecsize)
+        symbols_val[symbol] = BitVec("val_%s" % symbol, bitvecsize)
+        regact_id[symbol] = Const("regact_%s" % symbol, RegActChoice)
 
     # per state
     states = {}
     for state in input["states"]:
-        states[state] = BitVec(state, bitvecsize)
+        states[state] = BitVec("state_%s" % state, bitvecsize)
     constraints.append(states[input["initial"]] == BitVecVal(0, bitvecsize))
     for s1, s2 in itertools.product(states.keys(), states.keys()):
         if s1 != s2: constraints.append(states[s1] != states[s2])
@@ -58,7 +55,6 @@ def createDFA(input, bitvecsize):
 
         cond_regact=[]
         for i in range(num_regact):
-
             predicate_eq = If(list_predop[i] == PredOp.eq, pre_state == symbol_pred, False)
             predicate_ge = If(list_predop[i] == PredOp.ge, pre_state >= symbol_pred, False)
             predicate_le = If(list_predop[i] == PredOp.le, pre_state <= symbol_pred, False)
@@ -67,11 +63,11 @@ def createDFA(input, bitvecsize):
             branch_unchanged = (post_state == pre_state)
             predicate = Or(predicate_eq, predicate_ge, predicate_le, predicate_neq)
 
-            cond_this_regact_sat = If(predicate , branch_changed, branch_unchanged)
-            if i == 0:
-                cond_regact.append(If(regact_id[transition[1]]==RegActChoice.choose_0, cond_this_regact_sat, False))
-            if i == 1:
-                cond_regact.append(If(regact_id[transition[1]]==RegActChoice.choose_1, cond_this_regact_sat, False))
+            cond_this_regact_sat = If(predicate, branch_changed, branch_unchanged)
+            for i in range(num_regact):
+                cond_regact.append(If(regact_id[transition[1]]==getattr(RegActChoice, "choose_%d" % i ),
+                                   cond_this_regact_sat, False))
+
         constraints.append(Or(cond_regact))
 
     s = Solver()

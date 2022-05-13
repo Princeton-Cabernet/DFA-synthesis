@@ -6,6 +6,7 @@ ArithOp = Datatype('ArithOp')
 ArithOp.declare('plus')
 ArithOp.declare('bitxor')
 ArithOp.declare('bitand')
+ArithOp = ArithOp.create()
 
 PredOp = Datatype('PredOp')
 PredOp.declare('eq')
@@ -22,11 +23,11 @@ def createDFA(input, bitvecsize):
     predop = Const('predop', PredOp)
 
     for symbol in input["sigma"]:
-        symbols_pred[symbol] = BitVec(symbol, bitvecsize)
-        symbols_val[symbol] = BitVec(symbol, bitvecsize)
+        symbols_pred[symbol] = BitVec("pred_%s" % symbol, bitvecsize)
+        symbols_val[symbol] = BitVec("val_%s" % symbol, bitvecsize)
 
     for state in input["states"]:
-        states[state] = BitVec(state, bitvecsize)
+        states[state] = BitVec("state_%s" % state, bitvecsize)
     constraints.append(states[input["initial"]] == BitVecVal(0, bitvecsize))
     for s1, s2 in itertools.product(states.keys(), states.keys()):
         if s1 != s2: constraints.append(states[s1] != states[s2])
