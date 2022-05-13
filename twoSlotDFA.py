@@ -5,60 +5,77 @@ import itertools
 
 ArithOp, (plus, bitxor, bitand) = EnumSort('ArithOp', ('plus', 'bitxor', 'bitand'))
 PredOp , (eq, ge, le, neq) = EnumSort('PredOp', ('eq', 'ge', 'le', 'neq'))
-LogicOp, (left, right, booland, boolor) = EnumSort('LogicOp', ('left', 'right', 'booland', 'boolor'))
-StateOpt, (state_1, state_2, constant) = EnumSort('StateOpt', ('state_1', 'state_2', 'constant')) 
-SymbolOpt, (sym_1, sym_2, constant) = EnumSort('SymbolOpt', ('sym_1', 'sym_2', 'constant'))
+LogicOp, (left, booland, boolor) = EnumSort('LogicOp', ('left', 'booland', 'boolor'))
+StateOpt, (state_1, state_2, stateconstant) = EnumSort('StateOpt', ('state_1', 'state_2', 'constant')) 
+SymbolOpt, (sym_1, sym_2, symconstant) = EnumSort('SymbolOpt', ('sym_1', 'sym_2', 'constant'))
 
-num_regact = 2
+num_regact = 4
 
 RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 
 
 num_pred = 2
 num_arith = 4
-
+bitvecsize = 4
+zero = BitVecVal(0, bitvecsize)
 class Pred:
-    def __init__(reg_act_id, pred_id, bitvecsize):
+    def __init__(self, reg_act_id, pred_id):
         self.reg_act_id = reg_act_id
         self.pred_id = pred_id
-        self.op = Const('pred_op_%d_%d'%reg_act_id,pred_id, PredOp)
-        self.const = BitVec('pred_const_%d_%d'%reg_act_id,pred_id, bitvecsize)
-        self.sym_opt = Const('pred_sym_opt_%d_%d'%reg_act_id,pred_id, SymbolOpt)
-        self.state_opt = Const('pred_state_opt_%d_%d'%reg_act_id,pred_id, StateOpt)
+        self.op = Const('pred_op_%d_%d'%(reg_act_id,pred_id), PredOp)
+        self.const = BitVec('pred_const_%d_%d'%(reg_act_id,pred_id), bitvecsize)
+        self.sym_opt = Const('pred_sym_opt_%d_%d'%(reg_act_id,pred_id), SymbolOpt)
+        self.state_opt = Const('pred_state_opt_%d_%d'%(reg_act_id,pred_id), StateOpt)
 
-    def makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
-        #Todo
+    def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
+        pred_sym = If(self.sym_opt == symconstant, zero, If(self.sym_opt == sym_1, symbol_1, symbol_2))
+        pred_state = If(self.state_opt == stateconstant, zero, If(self.state_opt == state_1, pre_state_1, pre_state_2))
+        pred_arg = pred_state + pred_sym + self.const
+        predicate_eq = If(self.op == eq, pred_arg == zero, False)
+        predicate_ge = If(self.op == ge, pred_arg >= zero, False)
+        predicate_le = If(self.op == le, pred_arg <= zero, False)
+        predicate_neq = If(self.op == neq, pred_arg != zero, False)
+        return Or(predicate_eq, predicate_ge, predicate_le, predicate_neq)
 
 class Arith:
-    def __init__(reg_act_id, arith_id, bitvecsize):
+    def __init__(self, reg_act_id, arith_id):
         self.reg_act_id = reg_act_id
         self.arith_id = arith_id
-        self.op = Const('arith_op_%d_%d'%reg_act_id,arith_id, ArithOp)
-        self.sym_opt = Const('arith_sym_opt_%d_%d'%reg_act_id,arith_id, SymbolOpt)
-        self.sym_const = BitVec('arith_sym_const_%d_%d'%reg_act_id,arith_id, bitvecsize)
-        self.state_opt = Const('arith_state_opt_%d_%d'%reg_act_id,arith_id, StateOpt)
-        self.state_const = BitVec('arith_state_const_%d_%d'%reg_act_id,arith_id, bitvecsize)
+        self.op = Const('arith_op_%d_%d'%(reg_act_id,arith_id), ArithOp)
+        self.sym_opt = Const('arith_sym_opt_%d_%d'%(reg_act_id,arith_id), SymbolOpt)
+        self.sym_const = BitVec('arith_sym_const_%d_%d'%(reg_act_id,arith_id), bitvecsize)
+        self.state_opt = Const('arith_state_opt_%d_%d'%(reg_act_id,arith_id), StateOpt)
+        self.state_const = BitVec('arith_state_const_%d_%d'%(reg_act_id,arith_id), bitvecsize)
     
-    def makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
-        #Todo
+    def makeArithCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
+        arith_sym = If(self.sym_opt == symconstant, self.sym_const, If(self.sym_opt == sym_1, symbol_1, symbol_2))
+        arith_state = If(self.state_opt == stateconstant, self.state_const, If(self.state_opt == state_1, pre_state_1, pre_state_2))
+        arithres = If(self.op == plus, arith_state + arith_sym, If(self.op == bitxor, arith_state ^ arith_sym, arith_state & arith_sym))
+        return arithres
 
 class RegAct:
-    def __init__(reg_act_id, bitvecsize):
+    def __init__(self, reg_act_id):
         self.reg_act_id = reg_act_id
         self.logicop = Const("logicop_%d" % reg_act_id, LogicOp)
-        self.preds = [Pred(reg_act_id, i, bitvecsize) for i in range(num_pred)]
-        self.ariths = [Arith(reg_act_id, i, bitvecsize) for i in range(num_arith)]
+        self.preds = [Pred(reg_act_id, i) for i in range(num_pred)]
+        self.ariths = [Arith(reg_act_id, i) for i in range(num_arith)]
     
-    def makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
-        #Todo
+    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2):
+        leftCond = self.preds[0].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
+        rightCond = self.preds[0].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
+        predCond = If(self.logicop == left, leftCond, If(self.logicop == booland, And(leftCond, rightCond), Or(leftCond, rightCond)))
+        arithConds = [ar.makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2) for ar in self.ariths]
+        branchTrue = And(post_state_1 == arithConds[0], post_state_2 == arithConds[1])
+        branchFalse = And(post_state_1 == arithConds[2], post_state_2 == arithConds[3])
+        return If(predCond, branchTrue, branchFalse)
         
 
-def createDFA(input, bitvecsize):
+def createDFA(input):
     constraints = []
 
 
     # per RegAct
-    reg_acts = [RegAct(i, bitvecsize) for i in range(num_regact)]
+    reg_acts = [RegAct(i) for i in range(num_regact)]
 
     # per symbol
     symbols_1 = {}
@@ -98,51 +115,8 @@ def createDFA(input, bitvecsize):
         post_state_1 = states_1[transition[2]]
         post_state_2 = states_2[transition[2]]
 
-        cond_regact=[]
         for i in range(num_regact):
-            cond_pred = []
-            for j in range(num_pred):
-                pred_sym = If(list_pred_sym_opt[i][j] == SymbolOpt.sym_1, symbol_1, BitVecVal(0, bitvecsize)) + \
-                             If(list_pred_sym_opt[i][j] == SymbolOpt.sym_2, symbol_2, BitVecVal(0, bitvecsize))
-                pred_state = If(list_pred_state_opt[i][j] == StateOpt.state_1, pre_state_1, BitVecVal(0, bitvecsize)) + \
-                               If(list_pred_state_opt[i][j] == StateOpt.state_2, pre_state_2, BitVecVal(0, bitvecsize))
-                pred_arg = pred_state + pred_sym + list_pred_const[i][j]
-                predicate_eq = If(list_predop[i][j] == PredOp.eq, pred_arg == BitVecVal(0, bitvecsize), False)
-                predicate_ge = If(list_predop[i][j] == PredOp.ge, pred_arg >= BitVecVal(0, bitvecsize), False)
-                predicate_le = If(list_predop[i][j] == PredOp.le, pred_arg <= BitVecVal(0, bitvecsize), False)
-                predicate_neq = If(list_predop[i][j] == PredOp.neq, pred_arg != BitVecVal(0, bitvecsize), False)
-                cond_pred.append(Or(predicate_eq, predicate_ge, predicate_le, predicate_neq))
-
-            predicate_left = If(list_logicop[i] == LogicOp.left, cond_pred[0], False)
-            predicate_right = If(list_logicop[i] == LogicOp.right, cond_pred[-1], False)
-            predicate_and = If(list_logicop[i] == LogicOp.booland, And(cond_pred), False)
-            predicate_or = If(list_logicop[i] == LogicOp.boolor, Or(cond_pred), False)
-            predicate = Or(predicate_left, predicate_right, predicate_and, predicate_or)
-
-            cond_arith = []
-            for j in range(num_arith):
-                arith_sym = If(list_arith_sym_opt[i][j] == SymbolOpt.sym_1, symbol_1, BitVecVal(0, bitvecsize)) + \
-                            If(list_arith_sym_opt[i][j] == SymbolOpt.sym_2, symbol_2, BitVecVal(0, bitvecsize)) + \
-                            If(list_arith_sym_opt[i][j] == SymbolOpt.constant, list_arith_sym_const[i][j], BitVecVal(0, bitvecsize))
-                arith_state = If(list_arith_state_opt[i][j] == StateOpt.state_1, pre_state_1, BitVecVal(0, bitvecsize)) + \
-                                If(list_arith_state_opt[i][j] == StateOpt.state_2, pre_state_2, BitVecVal(0, bitvecsize)) + \
-                                If(list_arith_state_opt[i][j] == StateOpt.constant, list_arith_state_const[i][j], BitVecVal(0, bitvecsize))
-                arithres_plus = If(list_arithop[i][j] == ArithOp.plus, arith_state + arith_sym, BitVecVal(0, bitvecsize))
-                arithres_bxor = If(list_arithop[i][j] == ArithOp.bitxor, arith_state ^ arith_sym, BitVecVal(0, bitvecsize))
-                arithres_band = If(list_arithop[i][j] == ArithOp.bitand, arith_state & arith_sym, BitVecVal(0, bitvecsize))
-                arithres = arithres_plus + arithres_bxor + arithres_band
-                cond_arith.append(arithres)
-            
-            branch_1 = And((post_state_1 == cond_arith[0]), (post_state_2 == cond_arith[2]))
-            branch_2 = And((post_state_1 == cond_arith[1]), (post_state_2 == cond_arith[3]))
-
-            cond_this_regact_sat = If(predicate, branch_1, branch_2)
-            for i in range(num_regact):
-                cond_regact.append(If(regact_id[transition[1]]==getattr(RegActChoice, "choose_%d" % i ),
-                                   cond_this_regact_sat, False))
-
-        constraints.append(Or(cond_regact))
-
+            constraints.append(If(regact_id[transition[1]] == choices[i], reg_acts[i].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2), True))
     s = Solver()
     s.add(And(constraints))
 
@@ -161,7 +135,7 @@ def main():
     with open(sys.argv[1]) as file:
         input = json.load(file)
     bitvecsize = int(sys.argv[2])
-    createDFA(input, bitvecsize)
+    createDFA(input)
 
 if __name__ == '__main__':
     main()
