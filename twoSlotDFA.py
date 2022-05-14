@@ -83,10 +83,10 @@ class Arith:
 class RegAct:
     def __init__(self, reg_act_id):
         self.reg_act_id = reg_act_id
-        self.state_1_is_main = Bool("state_1_is_main_%d" % reg_act_id)
         self.logic_op = Const("logic_op_%d" % reg_act_id, LogicOp)
         self.preds = [Pred(reg_act_id, i) for i in range(num_pred)]
         self.ariths = [Arith(reg_act_id, i) for i in range(num_arith)]
+        self.state_1_is_main = Bool("state_1_is_main_%d" % reg_act_id)
     
     def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2, post_state_1_is_main):
         leftCond = self.preds[0].makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2)
@@ -146,9 +146,6 @@ def createDFA(input):
         states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
         states_1_is_main[state] = Bool('state_1_is_main_%s' % state)
 
-    state_init_symbol = input["initial"]
-    main_state_init = If(states_1_is_main[state_init_symbol], states_1[state_init_symbol], states_2[state_init_symbol])
-    constraints.append(main_state_init == zero)
     for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
         if s1 != s2: 
             main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1])
@@ -173,6 +170,12 @@ def createDFA(input):
                      reg_acts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
                                                              post_state_1, post_state_2, post_state_1_is_main), 
                      True))
+            s.push()
+            for symbol in input["sigma"]:
+                choice_constraints = []
+                for i in range(reg_adding + 1):
+                    choice_constraints.append(regact_id[symbol] == choices[i])
+                s.add(Or(choice_constraints))
         if s.check() == sat:
             print("Sat with %d regacts." % (reg_adding + 1))
             model = s.model()
@@ -185,6 +188,7 @@ def createDFA(input):
             print("Unsat")
             break
         else:
+            s.pop()
             reg_adding += 1
 
 def main():
