@@ -35,13 +35,13 @@ def access(model, val):
     return model[val].as_long() if (model[val] != None) else None
 
 class Pred:
-    def __init__(self, reg_act_id, pred_id):
-        self.reg_act_id = reg_act_id
+    def __init__(self, regact_id, pred_id):
+        self.regact_id = regact_id
         self.pred_id = pred_id
-        self.op = Const('pred_op_%d_%d' % (reg_act_id, pred_id), PredOp)
-        self.const = BitVec('pred_const_%d_%d' % (reg_act_id, pred_id), bitvecsize)
-        self.sym_opt = Const('pred_sym_opt_%d_%d' % (reg_act_id, pred_id), SymbolOpt)
-        self.state_opt = Const('pred_state_opt_%d_%d' % (reg_act_id, pred_id), StateOpt)
+        self.op = Const('pred_op_%d_%d' % (regact_id, pred_id), PredOp)
+        self.const = BitVec('pred_const_%d_%d' % (regact_id, pred_id), bitvecsize)
+        self.sym_opt = Const('pred_sym_opt_%d_%d' % (regact_id, pred_id), SymbolOpt)
+        self.state_opt = Const('pred_state_opt_%d_%d' % (regact_id, pred_id), StateOpt)
 
     def makeDFACond(self):
         constraints = []
@@ -73,14 +73,14 @@ class Pred:
         return config
 
 class Arith:
-    def __init__(self, reg_act_id, arith_id):
-        self.reg_act_id = reg_act_id
+    def __init__(self, regact_id, arith_id):
+        self.regact_id = regact_id
         self.arith_id = arith_id
-        self.op = Const('arith_op_%d_%d'% (reg_act_id, arith_id), ArithOp)
-        self.sym_opt = Const('arith_sym_opt_%d_%d'% (reg_act_id, arith_id), SymbolOpt)
-        self.sym_const = BitVec('arith_sym_const_%d_%d'% (reg_act_id, arith_id), bitvecsize)
-        self.state_opt = Const('arith_state_opt_%d_%d'% (reg_act_id, arith_id), StateOpt)
-        self.state_const = BitVec('arith_state_const_%d_%d'% (reg_act_id, arith_id), bitvecsize)
+        self.op = Const('arith_op_%d_%d'% (regact_id, arith_id), ArithOp)
+        self.sym_opt = Const('arith_sym_opt_%d_%d'% (regact_id, arith_id), SymbolOpt)
+        self.sym_const = BitVec('arith_sym_const_%d_%d'% (regact_id, arith_id), bitvecsize)
+        self.state_opt = Const('arith_state_opt_%d_%d'% (regact_id, arith_id), StateOpt)
+        self.state_const = BitVec('arith_state_const_%d_%d'% (regact_id, arith_id), bitvecsize)
     
     def makeDFACond(self):
         constraints = []
@@ -113,15 +113,15 @@ class Arith:
         return config
 
 class RegAct:
-    def __init__(self, reg_act_id):
+    def __init__(self, regact_id):
         self.num_pred = 2 if two_cond else 1
         self.num_arith = 4 if two_slot else 2
         self.num_logical_op = 2 if four_branch else 1
-        self.reg_act_id = reg_act_id
-        self.preds = [Pred(reg_act_id, i) for i in range(self.num_pred)]
-        self.ariths = [Arith(reg_act_id, i) for i in range(self.num_arith)]
-        self.logic_ops = [Const("logic_op_%d_%d" % (reg_act_id, i), LogicOp) for i in range(self.num_logical_op)]
-        self.state_1_is_main = Bool("state_1_is_main_%d" % reg_act_id)
+        self.regact_id = regact_id
+        self.preds = [Pred(regact_id, i) for i in range(self.num_pred)]
+        self.ariths = [Arith(regact_id, i) for i in range(self.num_arith)]
+        self.logic_ops = [Const("logic_op_%d_%d" % (regact_id, i), LogicOp) for i in range(self.num_logical_op)]
+        self.state_1_is_main = Bool("state_1_is_main_%d" % regact_id)
     
     def makeDFACond(self):
         constraints = []
@@ -131,6 +131,8 @@ class RegAct:
         constraints.extend(itertools.chain.from_iterable(ca))
         if not two_cond:
             constraints.append(self.logic_ops[0] == left)
+        if not two_slot:
+            constraints.append(self.state_1_is_main)
         return constraints
 
     def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2, post_state_1_is_main):
@@ -153,11 +155,11 @@ class RegAct:
                 branch_true = And(post_state_1 == arith_exprs[0], post_state_2 == arith_exprs[1])
                 branch_false = And(post_state_1 == arith_exprs[2], post_state_2 == arith_exprs[3])
                 constraints.append(If(pred_combos[0], branch_true, branch_false))
-            constraints.append(self.state_1_is_main == post_state_1_is_main)
         else:
             branch_true = And(post_state_1 == arith_exprs[0])
             branch_false = And(post_state_1 == arith_exprs[1])
             constraints.append(If(pred_combos[0], branch_true, branch_false))
+        constraints.append(self.state_1_is_main == post_state_1_is_main)
         return And(constraints)
 
     def toJSON(self, model):
@@ -167,26 +169,28 @@ class RegAct:
                    "state_1_is_main" : bool(model[self.state_1_is_main]) }
         return config
 
-def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, reg_acts):
+def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, regacts):
     config = {}
+    config["bitvecsize"] = bitvecsize
     config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
     config["symbols_2"] = { sym : access(model, val) for sym, val in symbols_2.items() }
-    config["regact_id"] = { sym : int(str(model[val]).split('_')[1]) for sym, val in regact_id.items() }
+    config["regact_id"] = { sym : (int(str(model[val]).split('_')[1]) if val != None else None)
+                            for sym, val in regact_id.items() }
     config["states_1"] = { state : access(model, val) for state, val in states_1.items() }
     if two_slot:
         config["states_2"] = { state : access(model, val) for state, val in states_2.items() }
         config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
-    config["reg_acts"] = [r.toJSON(model) for r in reg_acts]
+    config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
-def createDFA(input):
+def createDFA(input, output):
     # constraints
     constraints = []
 
     # per RegAct
-    reg_acts = [RegAct(i) for i in range(num_regact)]
-    for reg_act in reg_acts:
-        constraints.extend(reg_act.makeDFACond())
+    regacts = [RegAct(i) for i in range(num_regact)]
+    for regact in regacts:
+        constraints.extend(regact.makeDFACond())
 
     # per symbol
     symbols_1 = {}
@@ -229,7 +233,7 @@ def createDFA(input):
             post_state_1_is_main = states_1_is_main[transition[2]]
 
             s.add(If(regact_id[transition[1]] == choices[reg_adding], 
-                     reg_acts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
+                     regacts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
                                                              post_state_1, post_state_2, post_state_1_is_main), 
                      True))
             s.push()
@@ -241,10 +245,11 @@ def createDFA(input):
         if s.check() == sat:
             print("Sat with %d regacts." % (reg_adding + 1))
             model = s.model()
-            print(model)
             config = toJSON(model, symbols_1, symbols_2, regact_id, 
-                            states_1, states_2, states_1_is_main, reg_acts[: reg_adding + 1])
+                            states_1, states_2, states_1_is_main, regacts[: reg_adding + 1])
             print(json.dumps(config))
+            with open(output, 'w') as file:
+                json.dump(config, file)
             break
         elif reg_adding >= num_regact - 1:
             print("Unsat.")
@@ -254,12 +259,13 @@ def createDFA(input):
             reg_adding += 1
 
 def main():
-    if (len(sys.argv) < 2):
-        print ("please give input file")
+    if (len(sys.argv) < 3):
+        print ("please give input file and output config name")
         quit()
     with open(sys.argv[1]) as file:
         input = json.load(file)
-    createDFA(input)
+    output = sys.argv[2]
+    createDFA(input, output)
 
 if __name__ == '__main__':
     main()
