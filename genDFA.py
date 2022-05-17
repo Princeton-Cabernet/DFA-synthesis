@@ -29,7 +29,11 @@ bitvecsize = 4
 # Regact choice sort
 RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
 # constant zero
+
 zero = BitVecVal(0, bitvecsize)
+
+def zero(bitvecsize):
+    return BitVecVal(0, bitvecsize)
 
 def access(model, val):
     return model[val].as_long() if (model[val] != None) else None
