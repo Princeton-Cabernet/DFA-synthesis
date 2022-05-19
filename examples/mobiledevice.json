@@ -1,0 +1,42 @@
+{
+    "states" : ["associated", "roamedOut", "poweredOff", "idle", "error"], 
+    "sigma" : ["roamOut", "roamIn","powerOff", "initialize", "wakeUp", "sleep"], 
+    "transitions" : [
+    	["associated", "roamOut", "roamedOut"],
+    	["associated", "roamIn", "error"],
+    	["associated", "powerOff", "poweredOff"],
+    	["associated", "initialize", "error"],
+    	["associated", "wakeUp", "error"],
+    	["associated", "sleep", "idle"],
+
+    	["roamedOut", "roamOut", "error"],
+    	["roamedOut", "roamIn", "associated"],
+    	["roamedOut", "powerOff", "error"],
+    	["roamedOut", "initialize", "error"],
+    	["roamedOut", "wakeUp", "error"],
+    	["roamedOut", "sleep", "error"],
+
+    	["poweredOff", "roamOut", "error"], 
+    	["poweredOff", "roamIn", "error"], 
+    	["poweredOff", "powerOff", "error"], 
+    	["poweredOff", "initialize", "associated"], 
+    	["poweredOff", "wakeUp", "error"], 
+    	["poweredOff", "sleep", "error"], 
+
+    	["idle", "roamOut", "error"],
+    	["idle", "roamIn", "error"],
+    	["idle", "powerOff", "error"],
+    	["idle", "initialize", "error"],
+    	["idle", "wakeUp", "associated"],
+    	["idle", "sleep", "error"],
+
+    	["error", "roamOut", "error"],
+    	["error", "roamIn", "error"],
+    	["error", "powerOff", "error"],
+    	["error", "initialize", "associated"],
+    	["error", "wakeUp", "error"],
+    	["error", "sleep", "error"]
+	], 
+    "initial" : "poweredOff",
+    "accepting" : ["associated"]
+}
