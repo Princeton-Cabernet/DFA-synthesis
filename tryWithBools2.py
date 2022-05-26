@@ -43,7 +43,8 @@ class Pred:
         self.sym_opt_s2 = Bool('pred_sym_opt_s2_%d_%d' % (regact_id, pred_id))
         self.sym_opt_const = Bool('pred_sym_opt_const_%d_%d' % (regact_id, pred_id))
         self.state_opt_s1 = Bool('pred_state_opt_s1_%d_%d' % (regact_id, pred_id))
-        self.state_opt_s2 = Bool('pred_state_opt_s2_%d_%d' % (regact_id, pred_id))
+        if two_slot:
+            self.state_opt_s2 = Bool('pred_state_opt_s2_%d_%d' % (regact_id, pred_id))
         self.state_opt_const = Bool('pred_state_opt_const_%d_%d' % (regact_id, pred_id))
 
     #returns list of top level constraints
@@ -51,34 +52,58 @@ class Pred:
         constraints = []
         constraints.append(one_is_true_constraints([self.op_eq, self.op_ge, self.op_le, self.op_neq]))
         constraints.append(one_is_true_constraints([self.sym_opt_s1, self.sym_opt_s2, self.sym_opt_const]))
-        constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_s2, self.state_opt_const]))
+        if self.two_slot:
+            constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_s2, self.state_opt_const]))
+        else:
+            constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_const]))
         #if not self.arith_bin:
         #    constraints.append(Or(self.sym_opt == symconstant, self.state_opt == stateconstant))
         #if not self.two_slot:
         #    constraints.append(self.state_opt != state_2)
         return constraints
 
-    def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, names):
+    def makePredCond(self, pre_state_tuple, symbol_1, symbol_2, names):
         constraints = []
-        sym_val = BitVec('pred_sym_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.pred_id, names[0], names[1], names[2]), self.bitvecsize)
-        state_val = BitVec('pred_state_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.pred_id, names[0], names[1], names[2]), self.bitvecsize)
-        constraints.append(Implies(self.sym_opt_s1, sym_val == symbol_1))
-        constraints.append(Implies(self.sym_opt_s2, sym_val == symbol_2))
-        constraints.append(Implies(self.sym_opt_const, sym_val == zero(self.bitvecsize)))
-        constraints.append(Implies(self.state_opt_s1, state_val == pre_state_1))
-        constraints.append(Implies(self.state_opt_s2, state_val == pre_state_2))
-        constraints.append(Implies(self.state_opt_const, state_val == zero(self.bitvecsize)))
-        constraints.append(Implies(self.op_eq, (state_val + sym_val + self.const) == zero(self.bitvecsize)))
-        constraints.append(Implies(self.op_ge, (state_val + sym_val + self.const) >= zero(self.bitvecsize)))
-        constraints.append(Implies(self.op_le, (state_val + sym_val + self.const) <= zero(self.bitvecsize)))
-        constraints.append(Implies(self.op_neq, (state_val + sym_val + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_s1, self.state_opt_s1), (symbol_1 + pre_state_tuple[0] + self.const) == zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_s1, self.state_opt_const), (symbol_1 + self.const) == zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_s2, self.state_opt_s1), (symbol_2 + pre_state_tuple[0] + self.const) == zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_s2, self.state_opt_const), (symbol_2 + self.const) == zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_const, self.state_opt_s1), (pre_state_tuple[0] + self.const) == zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_eq, self.sym_opt_const, self.state_opt_const), (self.const) == zero(self.bitvecsize)))
+        if self.two_slot:
+            constraints.append(Implies(And(self.op_eq, self.sym_opt_s1, self.state_opt_s2), (symbol_1 + pre_state_tuple[1] + self.const) == zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_eq, self.sym_opt_s2, self.state_opt_s2), (symbol_2 + pre_state_tuple[1] + self.const) == zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_eq, self.sym_opt_const, self.state_opt_s2), (pre_state_tuple[1] + self.const) == zero(self.bitvecsize)))
+
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_s1, self.state_opt_s1), (symbol_1 + pre_state_tuple[0] + self.const) >= zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_s1, self.state_opt_const), (symbol_1 + self.const) >= zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_s2, self.state_opt_s1), (symbol_2 + pre_state_tuple[0] + self.const) >= zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_s2, self.state_opt_const), (symbol_2 + self.const) >= zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_const, self.state_opt_s1), (pre_state_tuple[0] + self.const) >= zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_ge, self.sym_opt_const, self.state_opt_const), (self.const) >= zero(self.bitvecsize)))
+        if self.two_slot:
+            constraints.append(Implies(And(self.op_ge, self.sym_opt_s1, self.state_opt_s2), (symbol_1 + pre_state_tuple[1] + self.const) >= zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_ge, self.sym_opt_s2, self.state_opt_s2), (symbol_2 + pre_state_tuple[1] + self.const) >= zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_ge, self.sym_opt_const, self.state_opt_s2), (pre_state_tuple[1] + self.const) >= zero(self.bitvecsize)))
+        
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_s1, self.state_opt_s1), (symbol_1 + pre_state_tuple[0] + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_s1, self.state_opt_const), (symbol_1 + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_s2, self.state_opt_s1), (symbol_2 + pre_state_tuple[0] + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_s2, self.state_opt_const), (symbol_2 + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_const, self.state_opt_s1), (pre_state_tuple[0] + self.const) != zero(self.bitvecsize)))
+        constraints.append(Implies(And(self.op_neq, self.sym_opt_const, self.state_opt_const), (self.const) != zero(self.bitvecsize)))
+        if self.two_slot:
+            constraints.append(Implies(And(self.op_neq, self.sym_opt_s1, self.state_opt_s2), (symbol_1 + pre_state_tuple[1] + self.const) != zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_neq, self.sym_opt_s2, self.state_opt_s2), (symbol_2 + pre_state_tuple[1] + self.const) != zero(self.bitvecsize)))
+            constraints.append(Implies(And(self.op_neq, self.sym_opt_const, self.state_opt_s2), (pre_state_tuple[1] + self.const) != zero(self.bitvecsize)))
         return constraints
 
     def toJSON(self, model):
         config = { "op": make_string_name_for_enum_bools(model, [(self.op_eq, "=="), (self.op_ge, ">="), (self.op_le, "<="), (self.op_neq, "!=")]),
                    "const": access(model, self.const),
                    "sym_opt": make_string_name_for_enum_bools(model, [(self.sym_opt_s1, "s1"), (self.sym_opt_s2, "s2"), (self.sym_opt_const, "const")]),
-                   "state_opt":  make_string_name_for_enum_bools(model, [(self.state_opt_s1, "s1"), (self.state_opt_s2, "s2"), (self.state_opt_const, "const")]) }
+                   "state_opt":  make_string_name_for_enum_bools(model, ([(self.state_opt_s1, "s1"), (self.state_opt_s2, "s2"), (self.state_opt_const, "const")] \
+                       if self.two_slot else [(self.state_opt_s1, "s1"), (self.state_opt_const, "const")])) }
         return config
 
 class Arith:
@@ -98,7 +123,8 @@ class Arith:
         self.sym_opt_s2 = Bool('arith_sym_opt_s2_%d_%d' % (regact_id, arith_id))
         self.sym_opt_const = Bool('arith_sym_opt_const_%d_%d' % (regact_id, arith_id))
         self.state_opt_s1 = Bool('arith_state_opt_s1_%d_%d' % (regact_id, arith_id))
-        self.state_opt_s2 = Bool('arith_state_opt_s2_%d_%d' % (regact_id, arith_id))
+        if two_slot:
+            self.state_opt_s2 = Bool('arith_state_opt_s2_%d_%d' % (regact_id, arith_id))
         self.state_opt_const = Bool('arith_state_opt_const_%d_%d' % (regact_id, arith_id))
     
     #returns list of top level constraints
@@ -106,7 +132,10 @@ class Arith:
         constraints = []
         constraints.append(one_is_true_constraints([self.op_plus, self.op_and, self.op_xor]))
         constraints.append(one_is_true_constraints([self.sym_opt_s1, self.sym_opt_s2, self.sym_opt_const]))
-        constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_s2, self.state_opt_const]))
+        if self.two_slot:
+            constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_s2, self.state_opt_const]))
+        else:
+            constraints.append(one_is_true_constraints([self.state_opt_s1, self.state_opt_const]))
         #if not self.arith_bin:
         #    constraints.append(And(Or(And(self.sym_opt == symconstant, self.sym_const == zero(self.bitvecsize)), 
         #                       And(self.state_opt == stateconstant, self.state_const == zero(self.bitvecsize))),
@@ -115,18 +144,23 @@ class Arith:
         #    constraints.append(self.state_opt != state_2)
         return constraints
 
-    def makeArithCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, names):
+    def makeArithCond(self, pre_state_tuple, symbol_1, symbol_2, names):
 
         sym_val = BitVec('arith_sym_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
         state_val = BitVec('arith_state_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
         arith_res = BitVec('arith_res_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
         constraints = []
+
+        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_s1), arith_res == symbol_1 + pre_state_tuple[0]))
+        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_const), arith_res == symbol_1 + pre_state_tuple[0]))
+        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_s1), arith_res == symbol_1 + pre_state_tuple[0]))
         constraints.append(Implies(self.sym_opt_s1, sym_val == symbol_1))
         constraints.append(Implies(self.sym_opt_s2, sym_val == symbol_2))
-        constraints.append(Implies(self.sym_opt_const, sym_val == zero(self.bitvecsize)))
-        constraints.append(Implies(self.state_opt_s1, state_val == pre_state_1))
-        constraints.append(Implies(self.state_opt_s2, state_val == pre_state_2))
-        constraints.append(Implies(self.state_opt_const, state_val == zero(self.bitvecsize)))
+        constraints.append(Implies(self.sym_opt_const, sym_val == self.sym_const))
+        constraints.append(Implies(self.state_opt_s1, state_val == pre_state_tuple[0]))
+        if self.two_slot:
+            constraints.append(Implies(self.state_opt_s2, state_val == pre_state_tuple[1]))
+        constraints.append(Implies(self.state_opt_const, state_val == self.state_const))
         constraints.append(Implies(self.op_plus, arith_res == sym_val + state_val))
         constraints.append(Implies(self.op_and, arith_res == sym_val & state_val))
         constraints.append(Implies(self.op_xor, arith_res == sym_val ^ state_val))
@@ -136,7 +170,8 @@ class Arith:
         config = { "op": make_string_name_for_enum_bools(model, [(self.op_plus, "+"), (self.op_and, "&"), (self.op_xor, "^")]),
                    "sym_opt": make_string_name_for_enum_bools(model, [(self.sym_opt_s1, "s1"), (self.sym_opt_s2, "s2"), (self.sym_opt_const, "const")]),
                    "sym_const": access(model, self.sym_const),
-                   "state_opt":  make_string_name_for_enum_bools(model, [(self.state_opt_s1, "s1"), (self.state_opt_s2, "s2"), (self.state_opt_const, "const")]),
+                   "state_opt":  make_string_name_for_enum_bools(model, ([(self.state_opt_s1, "s1"), (self.state_opt_s2, "s2"), (self.state_opt_const, "const")] \
+                       if self.two_slot else [(self.state_opt_s1, "s1"), (self.state_opt_const, "const")])), 
                    "state_const": access(model, self.state_const) }
         return config
 
@@ -157,7 +192,7 @@ class RegAct:
         self.logic_op_left = Bool("logic_op_left_%d" % regact_id)
         self.logic_op_and = Bool("logic_op_and_%d" % regact_id)
         self.logic_op_or = Bool("logic_op_or_%d" % regact_id)
-        self.state_1_is_main = Bool("state_1_is_main_%d" % regact_id)
+        #self.state_1_is_main = Bool("state_1_is_main_%d" % regact_id)
     
     def makeDFACond(self):
         constraints = []
@@ -165,16 +200,17 @@ class RegAct:
             constraints.extend(p.makeDFACond())
         for a in self.ariths:
             constraints.extend(a.makeDFACond())
-        constraints.append(one_is_true_constraints([self.logic_op_and, self.logic_op_left, self.logic_op_or]))
-        #if not self.two_cond:
-        #    constraints.append(self.logic_ops[0] == left)
-        #if not self.two_slot:
-        #    constraints.append(self.state_1_is_main)
+        if not(self.two_cond):
+            constraints.append(self.logic_op_left == True)
+            constraints.append(self.logic_op_and == False)
+            constraints.append(self.logic_op_or == False)
+        else:
+            constraints.append(one_is_true_constraints([self.logic_op_and, self.logic_op_left, self.logic_op_or]))
         return constraints
 
-    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2, post_state_1_is_main, names):
-        pred_conds= [p.makePredCond(pre_state_1, pre_state_2, symbol_1, symbol_2, names) for p in self.preds]
-        arith_exprs= [a.makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2, names) for a in self.ariths]
+    def makeTransitionCond(self, pre_state_tuple, symbol_1, symbol_2, post_state_tuple, names):
+        pred_conds= [p.makePredCond(pre_state_tuple, symbol_1, symbol_2, names) for p in self.preds]
+        arith_exprs= [a.makeArithCond(pre_state_tuple, symbol_1, symbol_2, names) for a in self.ariths]
         pred_val = Bool('top_pred_val_{0}{1}{2}{3}'.format(self.regact_id, names[0], names[1], names[2]))
         constraints= []
         for conds in arith_exprs:
@@ -191,12 +227,12 @@ class RegAct:
             #    constraints.append(If(pred_combos[0], post_state_1 == arith_exprs[0], post_state_1 == arith_exprs[2]))
             #    constraints.append(If(pred_combos[1], post_state_2 == arith_exprs[1], post_state_2 == arith_exprs[3]))
             #else:
-            branch_true = And(post_state_1 == arith_exprs[0][1], post_state_2 == arith_exprs[1][1])
-            branch_false = And(post_state_1 == arith_exprs[2][1], post_state_2 == arith_exprs[3][1])
+            branch_true = And(post_state_tuple[0] == arith_exprs[0][1], post_state_tuple[1] == arith_exprs[1][1])
+            branch_false = And(post_state_tuple[0] == arith_exprs[2][1], post_state_tuple[1] == arith_exprs[3][1])
             constraints.append(If(pred_val, branch_true, branch_false))
         else:
-            branch_true = And(post_state_1 == arith_exprs[0][1])
-            branch_false = And(post_state_1 == arith_exprs[1][1])
+            branch_true = post_state_tuple[0] == arith_exprs[0][1]
+            branch_false = post_state_tuple[0] == arith_exprs[1][1]
             constraints.append(If(pred_val, branch_true, branch_false))
         #constraints.append(self.state_1_is_main == post_state_1_is_main)
         return And(constraints)
@@ -206,11 +242,10 @@ class RegAct:
         
         config = { "logic_ops" : make_string_name_for_enum_bools(model, [(self.logic_op_left, "left"), (self.logic_op_and, "and"), (self.logic_op_or, "or")]), 
                    "preds" : [p.toJSON(model) for p in self.preds], 
-                   "ariths" : [a.toJSON(model) for a in self.ariths],
-                   "state_1_is_main" : bool(model[self.state_1_is_main]) }
+                   "ariths" : [a.toJSON(model) for a in self.ariths]}
         return config
 
-def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, regacts, two_slot, bitvecsize):
+def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, two_slot, bitvecsize):
     config = {}
     config["bitvecsize"] = bitvecsize
     config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
@@ -222,8 +257,8 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["regact_id"] = regdict
     config["states_1"] = { state : access(model, val) for state, val in states_1.items() }
     if two_slot:
-        config["states_2"] = { state : access(model, val) for state, val in states_2.items() }
-        config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
+       config["states_2"] = { state : access(model, val) for state, val in states_2.items() }
+    #   config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
@@ -258,38 +293,43 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
 
     for state in input["states"]:
         states_1[state] = BitVec("state_1_%s" % state, bitvecsize)
-        states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
+        if two_slot:
+            states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
         #states_1_is_main[state] = Bool('state_1_is_main_%s' % state)
 
     for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
-        if (s1 != s2):
+        if s1 != s2: 
             constraints.append(states_1[s1] != states_1[s2])
-    #    if s1 != s2: 
-    #        main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1])
-    #        main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2])
-    #        constraints.append(main_state_1 != main_state_2)
 
     s = Solver()
-    s.add(constraints)
+    s.add(And(constraints))
 
     for transition in input["transitions"]:
             pre_state_1 = states_1[transition[0]]
-            pre_state_2 = states_2[transition[0]]
+            if two_slot:
+                pre_state_2 = states_2[transition[0]]
+                pre_state_tuple = [pre_state_1, pre_state_2]
+            else:
+                pre_state_tuple = [pre_state_1]
+            
             symbol_1 = symbols_1[transition[1]]
             symbol_2 = symbols_2[transition[1]]
             post_state_1 = states_1[transition[2]]
-            post_state_2 = states_2[transition[2]]
+            if two_slot:
+                post_state_2 = states_2[transition[2]]
+                post_state_tuple = [post_state_1, post_state_2]
+            else:
+                post_state_tuple = [post_state_1]
             #post_state_1_is_main = states_1_is_main[transition[2]]
             for j in range(num_regact):
-                s.add(Implies(regact_id[(transition[1], j)], regacts[j].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1,\
-                     post_state_2, True, (transition[0], transition[1], transition[2]))))
-    #print(s)
+                s.add(Implies(regact_id[(transition[1], j)], regacts[j].makeTransitionCond(pre_state_tuple, symbol_1, symbol_2, post_state_tuple, (transition[0], transition[1], transition[2]))))
     if s.check() == sat:
         sys.stderr.write("Sat with %d regacts." % num_regact)
         model = s.model()
-        config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
-                     states_1_is_main, regacts, two_slot, bitvecsize)
+        config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, two_slot, bitvecsize)
         print(json.dumps(config))
+        print([len(r.ariths) for r in regacts])
+        print([len(r.preds) for r in regacts])
         #print(model)
     else:
         sys.stderr.write("unsat")
