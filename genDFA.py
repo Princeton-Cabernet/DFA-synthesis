@@ -1,5 +1,6 @@
 from z3 import *
 import json
+import time
 import itertools
 import argparse
 
@@ -169,7 +170,7 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["bitvecsize"] = bitvecsize
     config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
     config["symbols_2"] = { sym : access(model, val) for sym, val in symbols_2.items() }
-    config["regact_id"] = { sym : (int(str(model[val]).split('_')[1]) if val != None else None)
+    config["regact_id"] = { sym : (int(str(model[val]).split('_')[1]) if model[val] != None else None)
                             for sym, val in regact_id.items() }
     config["states_1"] = { state : access(model, val) for state, val in states_1.items() }
     if two_slot:
@@ -178,7 +179,7 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
-def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize):
+def createDFAIncr(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize):
     # constraints
     constraints = []
 
@@ -188,7 +189,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         constraints.extend(regact.makeDFACond())
 
     # Regact choice sort
-    RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
+    RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' % i for i in range(num_regact)])
 
     # per symbol
     symbols_1 = {}
@@ -241,19 +242,92 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
                     choice_constraints.append(regact_id[symbol] == choices[i])
                 s.add(Or(choice_constraints))
         if s.check() == sat:
-            sys.stderr.write("Sat with %d regacts." % (reg_adding + 1))
+            sys.stderr.write("Sat with %d regacts.\n" % (reg_adding + 1))
             model = s.model()
             config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
                             states_1_is_main, regacts[: reg_adding + 1], two_slot, bitvecsize)
             print(json.dumps(config))
             break
         elif reg_adding >= num_regact - 1:
-            sys.stderr.write("unsat")
+            sys.stderr.write("Unsat.\n")
             print("-1")
             break
         else:
             s.pop()
             reg_adding += 1
+
+def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout):
+    t0 = time.time()
+    
+    # constraints
+    constraints = []
+
+    # per RegAct
+    regacts = [RegAct(i, arith_bin, two_cond, two_slot, four_branch, bitvecsize) for i in range(num_regact)]
+    for regact in regacts:
+        constraints.extend(regact.makeDFACond())
+
+    # Regact choice sort
+    RegActChoice, choices = EnumSort('RegActChoice', ['choose_%d' %i for i in range(num_regact)])
+
+    # per symbol
+    symbols_1 = {}
+    symbols_2 = {}
+    regact_id = {}
+
+    for symbol in input["sigma"]:
+        symbols_1[symbol] = BitVec("sym_1_%s" % symbol, bitvecsize)
+        symbols_2[symbol] = BitVec("sym_2_%s" % symbol, bitvecsize)
+        regact_id[symbol] = Const("regact_%s" % symbol, RegActChoice)
+
+    # per state
+    states_1 = {}
+    states_2 = {}
+    states_1_is_main = {}
+
+    for state in input["states"]:
+        states_1[state] = BitVec("state_1_%s" % state, bitvecsize)
+        states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
+        states_1_is_main[state] = Bool('state_1_is_main_%s' % state)
+
+    for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
+        if s1 != s2: 
+            main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1])
+            main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2])
+            constraints.append(main_state_1 != main_state_2)
+
+    s = Solver()
+    s.add(And(constraints))
+
+    #per transition
+    for transition in input["transitions"]:
+        pre_state_1 = states_1[transition[0]]
+        pre_state_2 = states_2[transition[0]]
+        symbol_1 = symbols_1[transition[1]]
+        symbol_2 = symbols_2[transition[1]]
+        post_state_1 = states_1[transition[2]]
+        post_state_2 = states_2[transition[2]]
+        post_state_1_is_main = states_1_is_main[transition[2]]
+        
+        for reg_adding in range(num_regact):
+            s.add(If(regact_id[transition[1]] == choices[reg_adding], 
+                     regacts[reg_adding].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
+                                                             post_state_1, post_state_2, post_state_1_is_main), 
+                     True))
+
+    s.set("timeout", timeout * 1000)
+    t1 = time.time()
+    if s.check() == sat:
+        t2 = time.time()
+        sys.stderr.write("Sat with %d regacts, using %.5f + %.5f seconds.\n" % (num_regact, t1 - t0, t2 - t1))
+        model = s.model()
+        config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
+                        states_1_is_main, regacts[: reg_adding + 1], two_slot, bitvecsize)
+        print(json.dumps(config))
+    else:
+        t2 = time.time()
+        sys.stderr.write("Unsat, using %.5f + %.5f seconds.\n" % (t1 - t0, t2 - t1))
+        print("-1")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create DFA configurations.')
@@ -264,12 +338,14 @@ if __name__ == '__main__':
     parser.add_argument('--four_branch', action='store_true')
     parser.add_argument('--num_regact', type=int, default=1)
     parser.add_argument('--bitvecsize', type=int, default=8)
+    parser.add_argument('--timeout', type=int, default=1800)
     args=parser.parse_args()
     # assertion when four_branch == True: two_slot == True, two_cond == True
     assert(args.two_slot and args.two_cond if args.four_branch else True)
 
     input_json=json.load(open(args.input))
-    createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, args.num_regact, args.bitvecsize)
+    createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, 
+              args.num_regact, args.bitvecsize, args.timeout)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
