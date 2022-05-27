@@ -144,27 +144,48 @@ class Arith:
         #    constraints.append(self.state_opt != state_2)
         return constraints
 
-    def makeArithCond(self, pre_state_tuple, symbol_1, symbol_2, names):
-
-        sym_val = BitVec('arith_sym_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
-        state_val = BitVec('arith_state_val_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
-        arith_res = BitVec('arith_res_{0}{1}{2}{3}{4}'.format(self.regact_id, self.arith_id, names[0], names[1], names[2]), self.bitvecsize)
+    def makeArithCond(self, pre_state_tuple, symbol_1, symbol_2, post_state_tuple, names):
         constraints = []
 
-        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_s1), arith_res == symbol_1 + pre_state_tuple[0]))
-        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_const), arith_res == symbol_1 + pre_state_tuple[0]))
-        #constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_s1), arith_res == symbol_1 + pre_state_tuple[0]))
-        constraints.append(Implies(self.sym_opt_s1, sym_val == symbol_1))
-        constraints.append(Implies(self.sym_opt_s2, sym_val == symbol_2))
-        constraints.append(Implies(self.sym_opt_const, sym_val == self.sym_const))
-        constraints.append(Implies(self.state_opt_s1, state_val == pre_state_tuple[0]))
-        if self.two_slot:
-            constraints.append(Implies(self.state_opt_s2, state_val == pre_state_tuple[1]))
-        constraints.append(Implies(self.state_opt_const, state_val == self.state_const))
-        constraints.append(Implies(self.op_plus, arith_res == sym_val + state_val))
-        constraints.append(Implies(self.op_and, arith_res == sym_val & state_val))
-        constraints.append(Implies(self.op_xor, arith_res == sym_val ^ state_val))
-        return (constraints, arith_res)
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_1 + pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_s1, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_1 + self.state_const))
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_s2, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_2 + pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_s2, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_2 + self.state_const))
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_const, self.state_opt_s1), \
+            post_state_tuple[0] == self.sym_opt_const + pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_plus, self.sym_opt_const, self.state_opt_const), \
+            post_state_tuple[0] ==  self.sym_opt_const + self.state_const))
+
+        constraints.append(Implies(And(self.op_and, self.sym_opt_s1, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_1 & pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_and, self.sym_opt_s1, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_1 & self.state_const))
+        constraints.append(Implies(And(self.op_and, self.sym_opt_s2, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_2 & pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_and, self.sym_opt_s2, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_2 & self.state_const))
+        constraints.append(Implies(And(self.op_and, self.sym_opt_const, self.state_opt_s1), \
+            post_state_tuple[0] == self.sym_opt_const & pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_and, self.sym_opt_const, self.state_opt_const), \
+            post_state_tuple[0] ==  self.sym_opt_const & self.state_const))
+        
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_s1, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_1 ^ pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_s1, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_1 ^ self.state_const))
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_s2, self.state_opt_s1), \
+            post_state_tuple[0] == symbol_2 ^ pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_s2, self.state_opt_const), \
+            post_state_tuple[0] ==  symbol_2 ^ self.state_const))
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_const, self.state_opt_s1), \
+            post_state_tuple[0] == self.sym_opt_const ^ pre_state_tuple[0]))
+        constraints.append(Implies(And(self.op_xor, self.sym_opt_const, self.state_opt_const), \
+            post_state_tuple[0] ==  self.sym_opt_const ^ self.state_const))
+        return (constraints)
 
     def toJSON(self, model):
         config = { "op": make_string_name_for_enum_bools(model, [(self.op_plus, "+"), (self.op_and, "&"), (self.op_xor, "^")]),
@@ -209,7 +230,7 @@ class RegAct:
         return constraints
 
     def makeTransitionCond(self, pre_state_tuple, symbol_1, symbol_2, post_state_tuple, names):
-        pred_conds= [p.makePredCond(pre_state_tuple, symbol_1, symbol_2, names) for p in self.preds]
+        pred_conds= [p.makePredCond(pre_state_tuple, symbol_1, symbol_2, post_state_tuple, names) for p in self.preds]
         arith_exprs= [a.makeArithCond(pre_state_tuple, symbol_1, symbol_2, names) for a in self.ariths]
         pred_val = Bool('top_pred_val_{0}{1}{2}{3}'.format(self.regact_id, names[0], names[1], names[2]))
         constraints= []
