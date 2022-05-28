@@ -8,8 +8,12 @@ def verify_dfa(dfa, require_accepting=False, require_rejecting=False):
 	"Verify that the DFA is fully specified, with all transitions defined for all states."
 	"Note that if the accept state is present, it will be checked. However, missing accepting is allowed unless require_accepting=True."
 
-	states=dfa['states']
-	sigma=dfa['sigma']
+	states=set(dfa['states'])
+	if len(states)!=len(dfa['states']):
+		raise ValueError("Duplicate states.")
+	sigma=set(dfa['sigma'])
+	if len(sigma)!=len(dfa['sigma']):
+		raise ValueError("Duplicate sigma.")
 	transitions=dfa['transitions']
 	initial=dfa['initial']
 	if 'accepting' in dfa:
