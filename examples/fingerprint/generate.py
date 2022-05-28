@@ -55,7 +55,8 @@ def generate_json_sizes(symbols):
 	    "sigma" : list(set_symbols),
 	    "transitions" : transitions,
 	    "initial" : str(0),
-	    "accepting" : [str(l)]
+	    "accepting" : [str(l)],
+	    "rejecting" : [str(-1)],
 	}
 
 def generate_json_boundary(npkt_list):
@@ -77,7 +78,8 @@ def generate_json_boundary(npkt_list):
 	    "sigma" : symbols,
 	    "transitions" : transitions,
 	    "initial" : initial,
-	    "accepting" : [accept]
+	    "accepting" : [accept],
+	    "rejecting" : [reject],
 	}
 
 #first delete all earlier files
