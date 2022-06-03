@@ -1,0 +1,7 @@
+{
+    "states" : ["a"], 
+    "sigma" : ["x"], 
+    "transitions" : [["a","x","a"]], 
+    "initial" : "a",
+    "accepting" : ["a"]
+}
