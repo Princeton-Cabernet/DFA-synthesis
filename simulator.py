@@ -4,8 +4,8 @@ import warnings
 
 bitvecsize = 0
 
-def access(dict):
-    return {key: dict[key] if (dict[key] != None) else 0 for key in dict.keys()}
+def access(dict, dft_val = 0):
+    return {key: dict[key] if (dict[key] != None) else dft_val for key in dict.keys()}
 
 def sign(val, num_bits):
     max_int = 1 << (num_bits - 1)
@@ -25,20 +25,20 @@ class Pred:
         self.state_opt = state_opt
     
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.sym_opt == "sym_1":
+        if self.sym_opt == "s1":
             pred_sym = symbol_1
-        elif self.sym_opt == "sym_2":
+        elif self.sym_opt == "s2":
             pred_sym = symbol_2
-        elif self.sym_opt == "symconstant":
+        elif self.sym_opt == "const":
             pred_sym = 0
         else:
             warnings.warn("Null in predicate symbol.")
             pred_sym = 0
-        if self.state_opt == "state_1":
+        if self.state_opt == "s1":
             pred_state = pre_state_1
-        elif self.state_opt == "state_2":
+        elif self.state_opt == "s2":
             pred_state = pre_state_2
-        elif self.state_opt == "stateconstant":
+        elif self.state_opt == "const":
             pred_state = 0
         else:
             warnings.warn("Null in predicate state.")
@@ -67,11 +67,11 @@ class Arith:
         self.state_const = state_const
     
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.sym_opt == "sym_1":
+        if self.sym_opt == "s1":
             arith_sym = symbol_1
-        elif self.sym_opt == "sym_2":
+        elif self.sym_opt == "s2":
             arith_sym = symbol_2
-        elif self.sym_opt == "symconstant":
+        elif self.sym_opt == "const":
             if self.sym_const != None:
                 arith_sym = self.sym_const
             else:
@@ -80,11 +80,11 @@ class Arith:
         else:
             warnings.warn("Null in arithmetic symbol.")
             arith_sym = 0
-        if self.state_opt == "state_1":
+        if self.state_opt == "s1":
             arith_state = pre_state_1
-        elif self.state_opt == "state_2":
+        elif self.state_opt == "s2":
             arith_state = pre_state_2
-        elif self.state_opt == "stateconstant":
+        elif self.state_opt == "const":
             if self.state_const != None:
                 arith_state = self.state_const
             else:
@@ -95,9 +95,9 @@ class Arith:
             arith_state = 0
         if self.op == "plus":
             arith_res = arith_sym + arith_state
-        elif self.op == "bitxor":
+        elif self.op == "xor":
             arith_res =  arith_sym ^ arith_state
-        elif self.op == "bitand":
+        elif self.op == "and":
             arith_res =  arith_sym & arith_state
         else:
             warnings.warn("Null in arithmetic operator.")
@@ -120,9 +120,9 @@ class RegAct:
                 pred_combos.append(pred_conds[0])
             elif self.logic_ops[i] == "right":
                 pred_combos.append(pred_conds[1])
-            elif self.logic_ops[i] == "booland":
+            elif self.logic_ops[i] == "and":
                 pred_combos.append(pred_conds[0] & pred_conds[1])
-            elif self.logic_ops[i] == "boolor":
+            elif self.logic_ops[i] == "or":
                 pred_combos.append(pred_conds[0] | pred_conds[1])
             else:
                 warnings.warn("Null in logical operator.")
@@ -146,40 +146,35 @@ def simulateRegAct(input, config):
     symbols_1 = access(config["symbols_1"])
     symbols_2 = access(config["symbols_2"])
     regact_id = access(config["regact_id"])
-    states_1 = access(config["states_1"])
+    states_1 = access(config["states_1"], [])
     
     if "states_2" in config :
-        states_2 = access(config["states_2"])
+        states_2 = access(config["states_2"], [])
         states_1_is_main = config["states_1_is_main"]
-        back_to_state = {(states_1[k] if states_1_is_main[k] else states_2[k]) : k for k in input["states"]}
+        back_to_state = {v : k for k in input["states"] for v in (states_1[k] if states_1_is_main[k] else states_2[k])}
     else:
         states_2 = None
         states_1_is_main = None
-        back_to_state = {v : k for k, v in states_1.items()}
-    
+        back_to_state = {v : k for k in input["states"] for v in states_1[k]}
+
     regacts = [RegAct(**r) for r in config["regacts"]]
 
     for transition in input["transitions"]:
-        pre_state_1 = states_1[transition[0]]
-        symbol_1 = symbols_1[transition[1]]
-        symbol_2 = symbols_2[transition[1]]
-        post_state_1 = states_1[transition[2]]
-        regact_choice = regact_id[transition[1]]
-        regact = regacts[regact_choice]
+        for pre_state_1 in states_1[transition[0]]:
+            for pre_state_2 in (states_2[transition[0]] if states_2 != None else [None]):
+                symbol_1 = symbols_1[transition[1]]
+                symbol_2 = symbols_2[transition[1]]
+                post_state_1 = states_1[transition[2]]
+                regact_choice = regact_id[transition[1]]
+                regact = regacts[regact_choice]
+                post_state_2 = states_2[transition[2]] if states_2 != None else [None]
 
-        if states_2 != None:
-            pre_state_2 = states_2[transition[0]]
-            post_state_2 = states_2[transition[2]]
-        else:
-            pre_state_2 = None
-            post_state_2 = None
+                got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
+                got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
 
-        got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
-        got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
-
-        assert(got_state == transition[2])
-        assert(post_state_1 == got_state_1)
-        assert(post_state_2 == got_state_2)
+                assert(got_state == transition[2])
+                assert(got_state_1 in post_state_1)
+                assert(got_state_2 in post_state_2)
 
     print("Configuration verified for the DFA.")
 
