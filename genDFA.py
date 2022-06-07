@@ -2,6 +2,7 @@ from z3 import *
 import json
 import time
 import itertools
+import collections
 import argparse
 
 # for bools a,b,c return ((a & !b & !c) || (!a & b & !c) || (!a & !b & c))
@@ -228,6 +229,8 @@ def orderByState(transitions):
     return sorted(result.values(), key = len)
 
 def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout):
+    states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
+
     # constraints
     constraints = []
 
@@ -241,7 +244,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
     symbols_2 = {}
     regact_id = {}
 
-    for symbol in input["sigma"]:
+    for symbol in symbols:
         symbols_1[symbol] = BitVec("sym_1_%s" % symbol, bitvecsize)
         symbols_2[symbol] = BitVec("sym_2_%s" % symbol, bitvecsize)
         for rid in range(num_regact):
@@ -253,7 +256,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
     states_2 = {}
     states_1_is_main = {}
 
-    for state in input["states"]:
+    for state in states:
         states_1[state] = BitVec("state_1_%s" % state, bitvecsize)
         if two_slot:
             states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
@@ -269,24 +272,26 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
     s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     num_lists_solved = 0
-    transitions = orderBySymbol(input["transitions"])
+    transitions = orderBySymbol(transitions)
 
     for transition_list in transitions:
         #per transition
-        for transition in transition_list:
-            pre_state_1 = states_1[transition[0]]
-            pre_state_2 = states_2[transition[0]] if two_slot else None
-            symbol_1 = symbols_1[transition[1]]
-            symbol_2 = symbols_2[transition[1]]
-            post_state_1 = states_1[transition[2]]
-            post_state_2 = states_2[transition[2]] if two_slot else None
-            post_state_1_is_main = states_1_is_main[transition[2]] if two_slot else None
+        for (src_state, symbol, dst_state) in transition_list:
+            pre_state_1 = states_1[src_state]
+            pre_state_2 = states_2[src_state] if two_slot else None
+            symbol_1 = symbols_1[symbol]
+            symbol_2 = symbols_2[symbol]
+            post_state_1 = states_1[dst_state]
+            post_state_2 = states_2[dst_state] if two_slot else None
+            post_state_1_is_main = states_1_is_main[dst_state] if two_slot else None
 
             for rid in range(num_regact):
-                s.add(Implies(regact_id[(transition[1], rid)], 
-                                regacts[rid].makeTransitionCond(pre_state_1, pre_state_2, symbol_1, symbol_2, 
-                                                                post_state_1, post_state_2, post_state_1_is_main, 
-                                                                "%s_%s_%s" % (transition[0], transition[1], transition[2]))))
+                transition_condition=regacts[rid].makeTransitionCond(
+                    pre_state_1, pre_state_2, symbol_1, symbol_2,
+                    post_state_1, post_state_2, post_state_1_is_main,
+                    "%s_%s_%s" % (src_state, symbol, dst_state))
+
+                s.add(Implies(regact_id[(symbol, rid)], transition_condition))
 
 
         if (s.check() == sat):
