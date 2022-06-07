@@ -11,7 +11,6 @@
 		"localClose--time-wait",
 		"remoteClose--close-wait",
 		"remoteClose--last-ack",
-
 		"error"
 	], 
 	"sigma" : [

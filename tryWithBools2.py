@@ -154,19 +154,22 @@ class Arith:
             constraints.append(Implies(And(self.op_xor, sym_opt_tuple[0], state_opt_tuple[0]), state_setting == sym_opt_tuple[1] ^ state_opt_tuple[1]))
         return constraints
 
-    def makeArithErrorCond(self, pre_state_tuple, symbol_1, symbol_2, post_state_tuple, non_error_states, names):
+    def makeArithErrorCond(self, pre_state_tuple, symbol_1, symbol_2, error_states, names):
         constraints = []
-        if not(self.two_slot) or self.arith_id % 2 == 0:
-            sym_opts = [(self.sym_opt_s1, symbol_1), (self.sym_opt_s2, symbol_2), (self.sym_opt_const, self.sym_const)]
-            state_opts = [(self.state_opt_s1, pre_state_tuple[0]), (self.state_opt_const, self.state_const)]
-            if (self.two_slot):
-                state_opts.append((self.state_opt_s2, pre_state_tuple[1]))
-                for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
-                    constraints.append(Implies(And(self.op_plus, sym_opt_tuple[0], state_opt_tuple[0]), And([state_tuple[0] != sym_opt_tuple[1] + state_opt_tuple[1] for state_tuple in non_error_states])))
-                for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
-                    constraints.append(Implies(And(self.op_and, sym_opt_tuple[0], state_opt_tuple[0]),  And([state_tuple[0] != sym_opt_tuple[1] + state_opt_tuple[1] for state_tuple in non_error_states])))
-                for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
-                    constraints.append(Implies(And(self.op_xor, sym_opt_tuple[0], state_opt_tuple[0]),  And([state_tuple[0] != sym_opt_tuple[1] + state_opt_tuple[1] for state_tuple in non_error_states])))
+        if self.two_slot and self.arith_id % 2 == 1:
+            state_setting_idx = 1
+        else:
+            state_setting_idx = 0
+        sym_opts = [(self.sym_opt_s1, symbol_1), (self.sym_opt_s2, symbol_2), (self.sym_opt_const, self.sym_const)]
+        state_opts = [(self.state_opt_s1, pre_state_tuple[0]), (self.state_opt_const, self.state_const)]
+        if (self.two_slot):
+            state_opts.append((self.state_opt_s2, pre_state_tuple[1]))
+        for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
+            constraints.append(Implies(And(self.op_plus, sym_opt_tuple[0], state_opt_tuple[0]), Or([error_state[state_setting_idx] == sym_opt_tuple[1] + state_opt_tuple[1] for error_state in error_states])))
+        for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
+            constraints.append(Implies(And(self.op_and, sym_opt_tuple[0], state_opt_tuple[0]),  Or([error_state[state_setting_idx] == sym_opt_tuple[1] & state_opt_tuple[1] for error_state in error_states])))
+        for sym_opt_tuple, state_opt_tuple in itertools.product(sym_opts, state_opts):
+            constraints.append(Implies(And(self.op_xor, sym_opt_tuple[0], state_opt_tuple[0]),  Or([error_state[state_setting_idx] == sym_opt_tuple[1] ^ state_opt_tuple[1] for error_state in error_states])))
         return constraints
         
 
@@ -234,9 +237,9 @@ class RegAct:
         #constraints.append(self.state_1_is_main == post_state_1_is_main)
         return And(constraints)
 
-    def makeTransitionErrorCond(self, pre_state_tuple, symbol_1, symbol_2, post_state_tuple, state_tuples, names):
+    def makeTransitionErrorCond(self, pre_state_tuple, symbol_1, symbol_2, error_states, names):
         pred_conds= [p.makePredCond(pre_state_tuple, symbol_1, symbol_2, names) for p in self.preds]
-        arith_exprs= [a.makeArithErrorCond(pre_state_tuple, symbol_1, symbol_2, post_state_tuple, state_tuples, names) for a in self.ariths]
+        arith_exprs= [a.makeArithErrorCond(pre_state_tuple, symbol_1, symbol_2, error_states, names) for a in self.ariths]
         pred_val = Bool('top_pred_val_{0}{1}{2}{3}'.format(self.regact_id, names[0], names[1], names[2]))
         constraints= []
         if self.two_cond:
@@ -308,22 +311,33 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
     states_1 = {}
     states_2 = {}
     states_1_is_main = {}
+    error_states_1 = {}
+    error_states_2 = {}
 
-    for state in input["states"]:
+    for state in filter(lambda s : not("error" in s), input["states"]):
         states_1[state] = BitVec("state_1_%s" % state, bitvecsize)
         if two_slot:
             states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
         #states_1_is_main[state] = Bool('state_1_is_main_%s' % state)
+    num_error_states = 4
+    for i in range(num_error_states):
+        state_1 = BitVec("state_1_%s_%d" % ("error", i), bitvecsize)
+        error_states_1[i] = state_1
+        states_1["error%d" % i] = state_1
+        if two_slot:
+            state_2 = BitVec("state_2_%s_%d" % ("error", i), bitvecsize)
+            error_states_2[i] = state_2
+            states_2["error%d" % i] = state_2
 
     for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
-        if s1 != s2: 
+        if s1 != s2 and not("error" in s1 and "error" in s2): 
             constraints.append(states_1[s1] != states_1[s2])
 
     constraints.append(states_1[input["initial"]] == BitVecVal(0, bitvecsize))
     s = Solver()
     s.add(And(constraints))
     for sym in input["sigma"]:
-        for transition in filter(lambda t: t[1] == sym and t[2] != "error", input["transitions"]):
+        for transition in filter(lambda t: t[1] == sym and not("error" in t[2] or "error" in t[0]), input["transitions"]):
                 pre_state_1 = states_1[transition[0]]
                 if two_slot:
                     pre_state_2 = states_2[transition[0]]
@@ -346,9 +360,23 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         else:
             print("unsat")
             sys.exit()
-    for transition in filter(lambda t: t[2] == "error", input["transitions"]):
-        s.add(Implies(regact_id[(transition[1], j)], regacts[j].makeTransitionErrorCond(pre_state_tuple, symbol_1, symbol_2, post_state_tuple,\
-             [(states_1[st], states_2[st]) for st in filter(lambda s: s != "error", input["states"])], (transition[0], transition[1], transition[2]))))
+    if two_slot:
+        error_states = [[error_states_1[j], error_states_2[j]] for j in range(num_error_states)]
+    else:
+        error_states = [[error_states_1[j]] for j in range(num_error_states)]
+    for transition in filter(lambda t: "error" in t[2] and not ("error" in t[0]), input["transitions"]):
+        pre_state_1 = states_1[transition[0]]
+        if two_slot:
+            pre_state_2 = states_2[transition[0]]
+            pre_state_tuple = [pre_state_1, pre_state_2]
+        else:
+            pre_state_tuple = [pre_state_1]
+        for j in range(num_regact):
+            s.add(Implies(regact_id[(transition[1], j)], regacts[j].makeTransitionErrorCond(pre_state_tuple, symbol_1, symbol_2, error_states, (transition[0], transition[1], transition[2]))))
+    for transition in filter(lambda t:"error" in t[0], input["transitions"]):
+        for j in range(num_regact):
+            for est in error_states:
+                s.add(Implies(regact_id[(transition[1], j)], regacts[j].makeTransitionErrorCond(est, symbol_1, symbol_2, error_states, (transition[0], transition[1], transition[2]))))
     print([len(r.ariths) for r in regacts])
     print([len(r.preds) for r in regacts])
     if s.check() == sat:
