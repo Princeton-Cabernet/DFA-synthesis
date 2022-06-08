@@ -1,0 +1,67 @@
+{
+    "states" : ["null", 
+    	"only_a_joined", "only_b_joined", "only_c_joined", 
+    	"server_ab","server_bc","server_ac",
+    	"server_abc"
+    ], 
+    "sigma" : ["a_join","a_leave","b_join","b_leave","c_join","c_leave"], 
+    "transitions" : [
+    	["null","a_join","only_a_joined"],
+    	["null","b_join","only_b_joined"],
+    	["null","c_join","only_c_joined"],
+    	["null","a_leave","null"],
+    	["null","b_leave","null"],
+    	["null","c_leave","null"],
+
+    	["only_a_joined","a_join","only_a_joined"],
+    	["only_a_joined","b_join","server_ab"],
+    	["only_a_joined","c_join","server_ac"],
+    	["only_a_joined","a_leave","null"],
+    	["only_a_joined","b_leave","only_a_joined"],
+    	["only_a_joined","c_leave","only_a_joined"],
+
+    	["only_b_joined","a_join","server_ab"],
+    	["only_b_joined","b_join","only_b_joined"],
+    	["only_b_joined","c_join","server_bc"],
+    	["only_b_joined","a_leave","only_b_joined"],
+    	["only_b_joined","b_leave","null"],
+    	["only_b_joined","c_leave","only_b_joined"],
+
+    	["only_c_joined","a_join","server_ac"],
+    	["only_c_joined","b_join","server_bc"],
+    	["only_c_joined","c_join","only_c_joined"],
+    	["only_c_joined","a_leave","only_c_joined"],
+    	["only_c_joined","b_leave","only_c_joined"],
+    	["only_c_joined","c_leave","null"],
+
+    	["server_ab","a_join","server_ab"],
+    	["server_ab","b_join","server_ab"],
+    	["server_ab","c_join","server_abc"],
+    	["server_ab","a_leave","only_b_joined"],
+    	["server_ab","b_leave","only_a_joined"],
+    	["server_ab","c_leave","server_ab"],
+
+    	["server_ac","a_join","server_ac"],
+    	["server_ac","b_join","server_abc"],
+    	["server_ac","c_join","server_ac"],
+    	["server_ac","a_leave","only_c_joined"],
+    	["server_ac","b_leave","server_ac"],
+    	["server_ac","c_leave","only_a_joined"],
+
+    	["server_bc","a_join","server_abc"],
+    	["server_bc","b_join","server_bc"],
+    	["server_bc","c_join","server_bc"],
+    	["server_bc","a_leave","server_bc"],
+    	["server_bc","b_leave","only_c_joined"],
+    	["server_bc","c_leave","only_b_joined"],
+
+    	["server_abc","a_join","server_abc"],
+    	["server_abc","b_join","server_abc"],
+    	["server_abc","c_join","server_abc"],
+    	["server_abc","a_leave","server_bc"],
+    	["server_abc","b_leave","server_ac"],
+    	["server_abc","c_leave","server_ab"]
+	], 
+    "initial" : "null",
+    "accepting" : ["server_abc"]
+}
