@@ -1,1 +1,90 @@
-{"bitvecsize": 8, "symbols_1": {"roamOut": "120", "roamIn": "104", "powerOff": "24", "initialize": "34", "wakeUp": "177", "sleep": "47"}, "symbols_2": {"roamOut": "216", "roamIn": "32", "powerOff": "216", "initialize": "66", "wakeUp": "4", "sleep": "216"}, "regact_id": {"roamOut": 1, "roamIn": 0, "powerOff": 1, "initialize": 1, "wakeUp": 0, "sleep": 1}, "states_1": {"associated": "144", "roamedOut": "96", "poweredOff": "0", "idle": "23", "error": "10"}, "regacts": [{"logic_ops": "left", "preds": [{"op": "==", "const": "56", "sym_opt": "s1", "state_opt": "s1"}], "ariths": [{"op": "+", "sym_opt": "const", "sym_const": "211", "state_opt": "const", "state_const": "189"}, {"op": "&", "sym_opt": "const", "sym_const": "14", "state_opt": "const", "state_const": "234"}]}, {"logic_ops": "left", "preds": [{"op": ">=", "const": "42", "sym_opt": "s2", "state_opt": "s1"}], "ariths": [{"op": "+", "sym_opt": "s1", "sym_const": "4", "state_opt": "const", "state_const": "232"}, {"op": "^", "sym_opt": "s2", "sym_const": "8", "state_opt": "const", "state_const": "210"}]}]}
+{
+    "bitvecsize": 8,
+    "symbols_1": {
+        "roamOut": "102",
+        "roamIn": "63",
+        "powerOff": "105",
+        "initialize": "189",
+        "wakeUp": "4",
+        "sleep": "131"
+    },
+    "symbols_2": {
+        "roamOut": "236",
+        "roamIn": "206",
+        "powerOff": "118",
+        "initialize": "206",
+        "wakeUp": "206",
+        "sleep": "40"
+    },
+    "regact_id": {
+        "roamOut": 0,
+        "roamIn": 0,
+        "powerOff": 0,
+        "initialize": 0,
+        "wakeUp": 0,
+        "sleep": 0
+    },
+    "states_1": {
+        "associated": "88",
+        "roamedOut": "118",
+        "poweredOff": "0",
+        "idle": "178",
+        "error": "176"
+    },
+    "states_2": {
+        "associated": "27",
+        "roamedOut": "57",
+        "poweredOff": "195",
+        "idle": "117",
+        "error": "202"
+    },
+    "regacts": [
+        {
+            "logic_ops": "or",
+            "preds": [
+                {
+                    "op": ">=",
+                    "const": "32",
+                    "sym_opt": "s1",
+                    "state_opt": "s2"
+                },
+                {
+                    "op": ">=",
+                    "const": "97",
+                    "sym_opt": "s1",
+                    "state_opt": "s2"
+                }
+            ],
+            "ariths": [
+                {
+                    "op": "+",
+                    "sym_const": "112",
+                    "sym_opt": "const",
+                    "state_opt": "const",
+                    "state_const": "64"
+                },
+                {
+                    "op": "+",
+                    "sym_const": "65",
+                    "sym_opt": "const",
+                    "state_opt": "const",
+                    "state_const": "137"
+                },
+                {
+                    "op": "+",
+                    "sym_const": "12",
+                    "sym_opt": "s2",
+                    "state_opt": "const",
+                    "state_const": "138"
+                },
+                {
+                    "op": "+",
+                    "sym_const": "252",
+                    "sym_opt": "s2",
+                    "state_opt": "const",
+                    "state_const": "77"
+                }
+            ]
+        }
+    ]
+}
