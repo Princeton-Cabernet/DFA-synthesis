@@ -81,12 +81,12 @@ class Arith:
         self.two_slot = two_slot
         self.bitvecsize = bitvecsize
 
-        self.op_names = ['plus', 'and', 'xor']
+        self.op_names = ['plus', 'and', 'xor', 'or']
         self.sym_names = ["const", "s1", "s2", ]
         self.state_names = ["const", "s1"] + (["s2"] if two_slot else [])
 
         self.op_vars = [Bool('arith_op_%s_%d_%d' % (op_name, regact_id, arith_id)) for op_name in self.op_names]
-        self.op_vals = [lambda x, y : x + y, lambda x, y : x & y, lambda x, y : x ^ y]
+        self.op_vals = [lambda x, y : x + y, lambda x, y : x & y, lambda x, y : x ^ y, lambda x, y: x | y]
         self.sym_vars = [Bool('arith_sym_opt_%s_%d_%d' % (var_name, regact_id, arith_id)) for var_name in self.sym_names]
         self.state_vars = [Bool('arith_state_opt_%s_%d_%d' % (var_name, regact_id, arith_id)) for var_name in self.state_names]
         self.sym_const = BitVec('arith_sym_const_%d_%d'% (regact_id, arith_id), bitvecsize)
