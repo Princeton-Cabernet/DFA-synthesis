@@ -1,69 +1,88 @@
 {
     "bitvecsize": 8,
     "symbols_1": {
-        "x": "168",
-        "y": "128",
-        "z": "164"
+        "roamOut": "102",
+        "roamIn": "63",
+        "powerOff": "105",
+        "initialize": "189",
+        "wakeUp": "4",
+        "sleep": "131"
     },
     "symbols_2": {
-        "x": "0",
-        "y": "67",
-        "z": "104"
+        "roamOut": "236",
+        "roamIn": "206",
+        "powerOff": "118",
+        "initialize": "206",
+        "wakeUp": "206",
+        "sleep": "40"
     },
     "regact_id": {
-        "x": 0,
-        "y": 0,
-        "z": 0
+        "roamOut": 0,
+        "roamIn": 0,
+        "powerOff": 0,
+        "initialize": 0,
+        "wakeUp": 0,
+        "sleep": 0
     },
     "states_1": {
-        "a": "0",
-        "b": "104",
-        "c": "41"
+        "associated": "88",
+        "roamedOut": "118",
+        "poweredOff": "0",
+        "idle": "178",
+        "error": "176"
     },
     "states_2": {
-        "a": "40",
-        "b": "0",
-        "c": "32"
+        "associated": "27",
+        "roamedOut": "57",
+        "poweredOff": "195",
+        "idle": "117",
+        "error": "202"
     },
     "regacts": [
         {
-            "logic_ops": "left",
+            "logic_ops": "or",
             "preds": [
                 {
-                    "op": "!=",
-                    "const": "0",
-                    "sym_opt": "const",
-                    "state_opt": "s1"
+                    "op": ">=",
+                    "const": "32",
+                    "sym_opt": "s1",
+                    "state_opt": "s2"
+                },
+                {
+                    "op": ">=",
+                    "const": "97",
+                    "sym_opt": "s1",
+                    "state_opt": "s2"
                 }
             ],
             "ariths": [
                 {
                     "op": "+",
+                    "sym_const": "112",
+                    "sym_opt": "const",
+                    "state_opt": "const",
+                    "state_const": "64"
+                },
+                {
+                    "op": "+",
+                    "sym_const": "65",
+                    "sym_opt": "const",
+                    "state_opt": "const",
+                    "state_const": "137"
+                },
+                {
+                    "op": "+",
+                    "sym_const": "12",
                     "sym_opt": "s2",
-                    "sym_const": "104",
-                    "state_opt": "s2",
-                    "state_const": "76"
+                    "state_opt": "const",
+                    "state_const": "138"
                 },
                 {
-                    "op": "&",
-                    "sym_opt": "s1",
-                    "sym_const": "104",
-                    "state_opt": "s1",
-                    "state_const": "170"
-                },
-                {
-                    "op": "&",
-                    "sym_opt": "const",
-                    "sym_const": "214",
-                    "state_opt": "s2",
-                    "state_const": "95"
-                },
-                {
-                    "op": "&",
-                    "sym_opt": "const",
-                    "sym_const": "40",
-                    "state_opt": "s2",
-                    "state_const": "160"
+                    "op": "+",
+                    "sym_const": "252",
+                    "sym_opt": "s2",
+                    "state_opt": "const",
+                    "state_const": "77"
                 }
             ]
         }
