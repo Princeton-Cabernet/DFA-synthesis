@@ -164,7 +164,7 @@ class RegAct:
         arith_conds= [a.makeArithCond(pre_state_1, pre_state_2, symbol_1, symbol_2, post_state) for a, post_state in zip(self.ariths, post_state_list)]
 
         constraints= []
-        pred_vals = [Bool('pred_val_%d_%d_%s'.format(self.regact_id, i, trans_name)) for i in range(self.num_logical_op)]
+        pred_vals = [Bool('pred_val_%d_%d_%s' % (self.regact_id, i, trans_name)) for i in range(self.num_logical_op)]
         if self.two_cond:
             for i in range(self.num_logical_op):
                 for op_vars in self.op_var_lists:
