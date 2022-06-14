@@ -99,6 +99,8 @@ class Arith:
             arith_res =  arith_sym ^ arith_state
         elif self.op == "and":
             arith_res =  arith_sym & arith_state
+        elif self.op == "or":
+            arith_res =  arith_sym | arith_state
         else:
             warnings.warn("Null in arithmetic operator.")
             arith_res =  arith_sym + arith_state
