@@ -142,14 +142,16 @@ class Pred:
         return config
 
 class Arith:
-    def __init__(self, regact_id, arith_id, arith_bin, two_slot, bitvecsize):
+    def __init__(self, regact_id, arith_id, arith_bin, num_arith, two_slot, bitvecsize):
         self.regact_id = regact_id
         self.arith_id = arith_id
         self.arith_bin = arith_bin
+        self.num_arith = num_arith
         self.two_slot = two_slot
         self.bitvecsize = bitvecsize
 
-        op_names = ['plus', 'and', 'xor', 'or']
+        op_names = ['plus', 'and', 'xor', 'or', 'sub', 'subr', 'nand', 'andca', 'andcb', 'nor', 'orca', 'orcb', 'xnor']
+        op_names = op_names[:num_arith]
         sym_names = ["const", "s1", "s2"]
         state_names = ["const", "s1"] + ( ["s2"] if two_slot else [] )
         self.sym_enum = BoolEnum('arith_sym_opt_%d_%d' % (self.regact_id, self.arith_id), sym_names)
@@ -171,7 +173,12 @@ class Arith:
         state_vals = [0, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
         sym_val = self.sym_enum.gen_val(sym_vals)
         state_val = self.state_enum.gen_val(state_vals) 
-        op_vals = [sym_val + state_val, sym_val & state_val, sym_val ^ state_val, sym_val | state_val]
+        op_vals = [sym_val + state_val, sym_val & state_val, sym_val ^ state_val, sym_val | state_val,
+                   sym_val - state_val, state_val - sym_val,
+                   ~ (sym_val & state_val), (~ sym_val) & state_val, sym_val & (~ state_val),
+                   ~ (sym_val | state_val), (~ sym_val) | state_val, sym_val | (~ state_val),
+                   ~ (sym_val ^ state_val)]
+        op_vals = op_vals[:self.num_arith]
         return self.op_enum.gen_val(op_vals)
 
     def toJSON(self, model):
@@ -184,9 +191,10 @@ class Arith:
 
 
 class RegAct:
-    def __init__(self, regact_id, arith_bin, two_cond, two_slot, four_branch, bitvecsize):
+    def __init__(self, regact_id, arith_bin, num_arith, two_cond, two_slot, four_branch, bitvecsize):
         self.regact_id = regact_id
         self.arith_bin = arith_bin
+        self.num_arith = num_arith
         self.two_cond = two_cond
         self.two_slot = two_slot
         self.four_branch = four_branch
@@ -195,7 +203,7 @@ class RegAct:
         self.num_arith = 4 if two_slot else 2
         self.num_logical_op = 2 if four_branch else 1
         self.preds = [Pred(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_pred)]
-        self.ariths = [Arith(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_arith)]
+        self.ariths = [Arith(regact_id, i, arith_bin, num_arith, two_slot, bitvecsize) for i in range(self.num_arith)]
 
         op_names = ['left'] + (['and', 'or'] if two_cond else []) + (['right'] if four_branch else [])
         self.op_enums = [BoolEnum('logic_op_%d_%d' % (self.regact_id, i), op_names) for i in range(self.num_logical_op)]
@@ -282,14 +290,14 @@ def orderByState(transitions):
             result[transition[2]] = [transition]
     return sorted(result.values(), key = len)
 
-def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe):
+def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe):
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
 
     # constraints
     constraints = []
 
     # per RegAct
-    regacts = [RegAct(i, arith_bin, two_cond, two_slot, four_branch, bitvecsize) for i in range(num_regact)]
+    regacts = [RegAct(i, arith_bin, num_arith, two_cond, two_slot, four_branch, bitvecsize) for i in range(num_regact)]
     for regact in regacts:
         constraints.extend(regact.makeDFACond())
 
@@ -378,6 +386,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create DFA configurations.')
     parser.add_argument('input', type=str)
     parser.add_argument('--arith_bin', action='store_true')
+    parser.add_argument('--num_arith', type=int, default=6)
     parser.add_argument('--two_cond', action='store_true')
     parser.add_argument('--two_slot', action='store_true')
     parser.add_argument('--four_branch', action='store_true')
@@ -386,11 +395,12 @@ if __name__ == '__main__':
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--probe', action='store_true')
     args=parser.parse_args()
+
     # assertion when four_branch == True: two_slot == True, two_cond == True
-    assert(args.two_slot and args.two_cond if args.four_branch else True)
+    assert((args.two_slot and args.two_cond) if args.four_branch else True)
 
     input_json=json.load(open(args.input))
-    createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, 
+    createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, 
               args.num_regact, args.bitvecsize, args.timeout, args.probe)
 
 # Classic cases:

@@ -101,6 +101,24 @@ class Arith:
             arith_res =  arith_sym & arith_state
         elif self.op == "or":
             arith_res =  arith_sym | arith_state
+        elif self.op == "sub":
+            arith_res =  arith_sym - arith_state
+        elif self.op == "subr":
+            arith_res = arith_state - arith_sym
+        elif self.op == "nand":
+            arith_res =  ~ (arith_sym & arith_state)
+        elif self.op == "andca":
+            arith_res =  (~ arith_sym) & arith_state
+        elif self.op == "andcb":
+            arith_res =  arith_sym & (~ arith_state)
+        elif self.op == "nor":
+            arith_res =  ~ (arith_sym | arith_state)
+        elif self.op == "orca":
+            arith_res =  (~ arith_sym) | arith_state
+        elif self.op == "orcb":
+            arith_res =  arith_sym | (~ arith_state)
+        elif self.op == "xnor":
+            arith_res =  ~ (arith_sym ^ arith_state)
         else:
             warnings.warn("Null in arithmetic operator.")
             arith_res =  arith_sym + arith_state
