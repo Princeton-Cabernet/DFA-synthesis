@@ -1,0 +1,71 @@
+{
+	"states" : [
+		"closed",
+		"outgoing--syn-sent",
+		"incoming--syn-sent",
+		"outgoing--synack-received",
+		"incoming--synack-received",
+		"established",
+		"error"
+	], 
+	"sigma" : [
+		"outgoing--syn",
+		"outgoing--synack",
+		"outgoing--ack",
+		"incoming--syn",
+		"incoming--synack",
+		"incoming--ack"
+	], 
+	"transitions" : [
+		["outgoing--syn-sent", "outgoing--syn", "outgoing--syn-sent"],
+		["outgoing--syn-sent", "incoming--syn", "error"], 
+		["outgoing--syn-sent", "outgoing--synack", "error"],
+		["outgoing--syn-sent", "incoming--synack", "outgoing--synack-received"], 
+						["outgoing--syn-sent", "outgoing--ack", "error"],
+						["outgoing--syn-sent", "incoming--ack", "error"],
+
+		["incoming--syn-sent", "incoming--syn", "incoming--syn-sent"],
+		["incoming--syn-sent", "outgoing--syn", "error"], 
+		["incoming--syn-sent", "incoming--synack", "error"],
+		["incoming--syn-sent", "outgoing--synack", "incoming--synack-received"], 
+						["incoming--syn-sent", "outgoing--ack", "error"],
+						["incoming--syn-sent", "incoming--ack", "error"],
+
+		["outgoing--synack-received", "outgoing--syn", "outgoing--synack-received"],
+		["outgoing--synack-received", "incoming--syn", "error"], 
+		["outgoing--synack-received", "outgoing--synack", "error"],
+		["outgoing--synack-received", "incoming--synack", "outgoing--synack-received"], 
+		["outgoing--synack-received", "outgoing--ack", "established"],
+		["outgoing--synack-received", "incoming--ack", "error"],
+
+		["incoming--synack-received", "incoming--syn", "incoming--synack-received"],
+		["incoming--synack-received", "outgoing--syn", "error"], 
+		["incoming--synack-received", "incoming--synack", "error"],
+		["incoming--synack-received", "outgoing--synack", "incoming--synack-received"], 
+		["incoming--synack-received", "incoming--ack", "established"],
+		["incoming--synack-received", "outgoing--ack", "error"],
+
+		["established", "outgoing--ack", "established"],
+		["established", "incoming--ack", "established"],
+						["established", "outgoing--syn", "error"],
+						["established", "incoming--syn", "error"], 
+						["established", "outgoing--synack", "error"],
+						["established", "incoming--synack", "error"], 
+
+		["closed", "outgoing--ack", "closed"],
+		["closed", "incoming--ack", "closed"],
+		["closed", "outgoing--syn", "outgoing--syn-sent"],
+		["closed", "incoming--syn", "incoming--syn-sent"],    	
+			["closed", "outgoing--synack", "error"],
+			["closed", "incoming--synack", "error"],
+
+		["error", "outgoing--syn", "error"],
+		["error", "incoming--syn", "error"], 
+		["error", "outgoing--synack", "error"],
+		["error", "incoming--synack", "error"], 
+		["error", "outgoing--ack", "error"],
+		["error", "incoming--ack", "error"]
+	], 
+	"initial" : "closed",
+	"accepting" : ["established"]
+}

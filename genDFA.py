@@ -16,8 +16,12 @@ def only_one_is_true(list_of_bools):
         ans.append(And(clause))
     return Or(ans)
 
-def access(model, val):
+def access_int(model, val):
     return model[val].as_long() if (model[val] != None) else None
+
+def access_bool(model, val):
+    return bool(model[val]) if (model[val] != None) else True
+
 
 class Node:
     def __init__(self, leaf, height, name, data):
@@ -82,7 +86,7 @@ class BoolEnum:
         if root.leaf:
             return root.name
         else:
-            if model.eval(Bool(root.name)):
+            if access_bool(model, Bool(root.name)):
                 return self.to_string_helper(root.left, model)
             else:
                 return self.to_string_helper(root.right, model)
@@ -124,7 +128,7 @@ class Pred:
     def makeDFACond(self):
         constraints = []
         if not self.arith_bin:
-            constraints.append(Or(self.sym_vars[0], self.state_vars[0]))
+            constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
         return constraints
 
     def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
@@ -136,7 +140,7 @@ class Pred:
 
     def toJSON(self, model):
         config = { "op": self.op_enum.to_string(model),
-                   "const": access(model, self.const),
+                   "const": access_int(model, self.const),
                    "sym_opt": self.sym_enum.to_string(model),
                    "state_opt": self.state_enum.to_string(model) }
         return config
@@ -184,9 +188,9 @@ class Arith:
     def toJSON(self, model):
         config = { "op": self.op_enum.to_string(model),
                    "sym_opt": self.sym_enum.to_string(model),
-                   "sym_const": access(model, self.sym_const),
+                   "sym_const": access_int(model, self.sym_const),
                    "state_opt": self.state_enum.to_string(model),
-                   "state_const": access(model, self.state_const) }
+                   "state_const": access_int(model, self.state_const) }
         return config
 
 
@@ -262,12 +266,12 @@ class RegAct:
 def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, regacts, two_slot, bitvecsize):
     config = {}
     config["bitvecsize"] = bitvecsize
-    config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
-    config["symbols_2"] = { sym : access(model, val) for sym, val in symbols_2.items() }
-    config["regact_id"] = { sym[0] : sym[1] for sym, val in regact_id.items() if model[val]}
-    config["states_1"] = { state : [access(model, val)] for state, val in states_1.items() }
+    config["symbols_1"] = { sym : access_int(model, val) for sym, val in symbols_1.items() }
+    config["symbols_2"] = { sym : access_int(model, val) for sym, val in symbols_2.items() }
+    config["regact_id"] = { sym : int(val.to_string(model)) for sym, val in regact_id.items()}
+    config["states_1"] = { state : [access_int(model, val)] for state, val in states_1.items() }
     if two_slot:
-        config["states_2"] = { state : [access(model, val)] for state, val in states_2.items() }
+        config["states_2"] = { state : [access_int(model, val)] for state, val in states_2.items() }
         config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
@@ -305,13 +309,12 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     symbols_1 = {}
     symbols_2 = {}
     regact_id = {}
+    regact_names = [str(i) for i in range(num_regact)]
 
     for symbol in symbols:
         symbols_1[symbol] = BitVec("sym_1_%s" % symbol, bitvecsize)
         symbols_2[symbol] = BitVec("sym_2_%s" % symbol, bitvecsize)
-        for rid in range(num_regact):
-            regact_id[(symbol, rid)] = Bool("regact_%s_%d" % (symbol, rid))
-        constraints.append(only_one_is_true([regact_id[(symbol, i)] for i in range(num_regact)]))
+        regact_id[symbol] = BoolEnum("regact_%s" % symbol, regact_names)
 
     # per state
     states_1 = {}
@@ -331,11 +334,11 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             constraints.append(main_state_1 != main_state_2)
 
     set_param("parallel.enable", True)
-    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()  
+    s = Then('simplify', 'solve-eqs', 'reduce-bv-size', 'max-bv-sharing', 'bit-blast', 'qffd', 'sat').solver()  
     s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     if probe: ps = {opt: Probe(opt) for opt in probes()}
-    # num_lists_solved = 0
+    num_lists_solved = 0
     transitions = orderBySymbol(transitions)
 
     for transition_list in transitions:
@@ -349,17 +352,20 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             post_state_2 = states_2[dst_state] if two_slot else None
             post_state_1_is_main = states_1_is_main[dst_state] if two_slot else None
 
+            logic_constraints = []
             for rid in range(num_regact):
                 constr, logic_constr = regacts[rid].makeTransitionCond(
                     pre_state_1, pre_state_2, symbol_1, symbol_2,
                     post_state_1, post_state_2, post_state_1_is_main,
                     "%s_%s_%s" % (src_state, symbol, dst_state))
-                new_constr = Implies(regact_id[(symbol, rid)], logic_constr)
                 s.add(constr)
-                s.add(new_constr)
+                logic_constraints.append(logic_constr)
                 if probe: 
                     constraints.extend(constr)
-                    constraints.append(new_constr)
+            new_constr = regact_id[symbol].gen_val(logic_constraints)
+            s.add(new_constr)
+            if probe: 
+                constraints.append(new_constr)
 
         # if (s.check() == sat):
         #     sys.stderr.write("Sat at the %d th symbol.\n" % (num_lists_solved))
