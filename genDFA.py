@@ -295,6 +295,7 @@ def orderByState(transitions):
     return sorted(result.values(), key = len)
 
 def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe):
+    t0 = time.time()
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
 
     # constraints
@@ -338,7 +339,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     if probe: ps = {opt: Probe(opt) for opt in probes()}
-    num_lists_solved = 0
+    # num_lists_solved = 0
     transitions = orderBySymbol(transitions)
 
     for transition_list in transitions:
@@ -376,17 +377,24 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         #     sys.exit()
 
     if s.check() == sat:
+        print(s.assertions())
+        t1 = time.time()
         if probe: 
             for opt, p in ps.items():
                 sys.stderr.write("%s: %s\n" % (opt, p(And(constraints))))
         sys.stderr.write("Sat with %d regacts.\n" % num_regact)
         model = s.model()
+        print(s.model().eval(And(s.assertions())))
+
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
                         states_1_is_main, regacts, two_slot, bitvecsize)
         print(json.dumps(config))
+        return True, (t1 - t0), config
     else:
+        t1 = time.time()
         sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
         print("-1")
+        return False, (t1 - t0), None
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create DFA configurations.')
