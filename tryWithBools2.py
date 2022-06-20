@@ -117,8 +117,8 @@ class Arith:
         self.two_slot = two_slot
         self.bitvecsize = bitvecsize
         self.dontcare_val = doncare_fun(bitvecsize)
-        self.op_plus = Bool('arith_op_plus_%d_%d'% (regact_id, arith_id))
-        self.op_and = Bool('arith_op_and_%d_%d'% (regact_id, arith_id))
+        self.op_1 = Bool('arith_op_1_%d_%d'% (regact_id, arith_id)) #00 -> IR , 01 -> XOR, 10 -> AND, 11 -> Plus
+        self.op_2 = Bool('arith_op_2_%d_%d'% (regact_id, arith_id))
         #self.op_xor = Bool('arith_op_xor_%d_%d'% (regact_id, arith_id)) //XOR is else case
         self.sym_const = BitVec('arith_sym_const_%d_%d'% (regact_id, arith_id), bitvecsize)
         self.state_const = BitVec('arith_state_const_%d_%d'% (regact_id, arith_id), bitvecsize)
@@ -142,13 +142,13 @@ class Arith:
             exp_state_choice = pre_state_tuple[0]
         sym_choice = If(self.sym_opt_const,self.sym_const, If(self.sym_opt_which_sym, symbol_1, symbol_2))
         state_choice = If(self.state_opt_const, self.state_const, exp_state_choice)
-        arith_val = If(self.op_plus, state_choice + sym_choice, If(self.op_and, state_choice & sym_choice, state_choice ^ sym_choice))
+        arith_val = If(self.op_1, If(self.op_2, state_choice + sym_choice, state_choice & sym_choice), If(self.op_2, state_choice ^ sym_choice, state_choice | sym_choice))
         return arith_val
         
 
 
     def toJSON(self, model):
-        config = { "op": print_string_name_ordered_from_0([self.op_plus, self.op_and], ["^", "&", "+"], model),
+        config = { "op": print_string_name_ordered_from_0([self.op_1, self.op_2], ["|", "^", "&", "+"], model),
                    "sym_const": access(model, self.sym_const),
                    "sym_opt": print_string_name_ordered_from_0([self.sym_opt_const, self.sym_opt_which_sym], ["s2", "s1", "const"], model),
                    "state_opt":  print_string_name_ordered_from_0([self.state_opt_const, self.state_opt_which_state] if self.two_slot else [self.state_opt_const], ["s2", "s1", "const"] if self.two_slot else ["s1", "const"], model), 
