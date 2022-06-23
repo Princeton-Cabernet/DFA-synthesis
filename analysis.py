@@ -3,7 +3,9 @@ import sys
 
 if __name__ == '__main__':
 
-    files = ["simple.json"] + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
+    files = ["zoom_simple.json", "mobiledevice.json", "tcp_open.json", "simple.json"] \
+            + ["fingerprint_%s.json" % suf for suf in ["16x1", "8x3", "10x3", "12x3", "8x4", "10x4", "12x4"]] \
+            + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
 
     for file in files:
         path = "examples/%s" % file

@@ -1,5 +1,5 @@
 import json
-import sys
+import argparse
 import warnings
 
 bitvecsize = 0
@@ -18,34 +18,43 @@ def unsign(val, num_bits):
     return val & (bound - 1)
 
 class Pred:
-    def __init__(self, op, const, sym_opt, state_opt):
+    def __init__(self, op, const, lhs, warning):
         self.op = op
         self.const = const
-        self.sym_opt = sym_opt
-        self.state_opt = state_opt
-    
+        self.lhs = lhs
+        self.warning = warning
+
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.sym_opt == "s1":
-            pred_sym = symbol_1
-        elif self.sym_opt == "s2":
-            pred_sym = symbol_2
-        elif self.sym_opt == "const":
-            pred_sym = 0
+        if self.lhs == "none":
+            lhs = 0
+        elif self.lhs == "sym1":
+            lhs = symbol_1
+        elif self.lhs == "sym2":
+            lhs = symbol_2
+        elif self.lhs == "state1":
+            lhs = pre_state_1
+        elif self.lhs == "sym1_state1":
+            lhs = symbol_1 + pre_state_1
+        elif self.lhs == "sym2_state1":
+            lhs = symbol_2 + pre_state_1
+        elif self.lhs == "state2":
+            lhs = pre_state_2
+        elif self.lhs == "sym1_state2":
+            lhs = symbol_1 + pre_state_2
+        elif self.lhs == "sym2_state2":
+            lhs = symbol_2 + pre_state_2
         else:
-            warnings.warn("Null in predicate symbol.")
-            pred_sym = 0
-        if self.state_opt == "s1":
-            pred_state = pre_state_1
-        elif self.state_opt == "s2":
-            pred_state = pre_state_2
-        elif self.state_opt == "const":
-            pred_state = 0
+            if self.warning:
+                warnings.warn("Null in predicate lhs.")
+            lhs = 0
+        if self.const == None:
+            if self.warning:
+                warnings.warn("Null in predicate constant.")
+            pred_const = 0
         else:
-            warnings.warn("Null in predicate state.")
-            pred_state = 0
-        pred_const = 0 if self.const == None else self.const
+            pred_const = self.const
         global bitvecsize
-        pred_arg = sign(pred_state + pred_sym + pred_const, bitvecsize)
+        pred_arg = sign(lhs + pred_const, bitvecsize)
         if self.op == "eq":
             return pred_arg == 0
         elif self.op == "ge":
@@ -55,16 +64,18 @@ class Pred:
         elif self.op == "neq":
             return pred_arg != 0
         else:
-            warnings.warn("Null in predicate operator.")
+            if self.warning:
+                warnings.warn("Null in predicate operator.")
             return pred_arg == 0
 
 class Arith:
-    def __init__(self, op, sym_opt, sym_const, state_opt, state_const):
+    def __init__(self, op, sym_opt, sym_const, state_opt, state_const, warning):
         self.op = op
         self.sym_opt = sym_opt
         self.sym_const = sym_const
         self.state_opt = state_opt
         self.state_const = state_const
+        self.warning = warning
     
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
         if self.sym_opt == "s1":
@@ -75,10 +86,12 @@ class Arith:
             if self.sym_const != None:
                 arith_sym = self.sym_const
             else:
-                warnings.warn("Null in arithmetic symbol constant.")
+                if self.warning:
+                    warnings.warn("Null in arithmetic symbol constant.")
                 arith_sym = 0
         else:
-            warnings.warn("Null in arithmetic symbol.")
+            if self.warning:
+                warnings.warn("Null in arithmetic symbol.")
             arith_sym = 0
         if self.state_opt == "s1":
             arith_state = pre_state_1
@@ -88,10 +101,12 @@ class Arith:
             if self.state_const != None:
                 arith_state = self.state_const
             else:
-                warnings.warn("Null in arithmetic symbol constant.")
+                if self.warning:
+                    warnings.warn("Null in arithmetic symbol constant.")
                 arith_state = 0
         else:
-            warnings.warn("Null in arithmetic state.")
+            if self.warning:
+                warnings.warn("Null in arithmetic state.")
             arith_state = 0
         if self.op == "plus":
             arith_res = arith_sym + arith_state
@@ -120,16 +135,18 @@ class Arith:
         elif self.op == "xnor":
             arith_res =  ~ (arith_sym ^ arith_state)
         else:
-            warnings.warn("Null in arithmetic operator.")
+            if self.warning:
+                warnings.warn("Null in arithmetic operator.")
             arith_res =  arith_sym + arith_state
         return unsign(arith_res, bitvecsize)
 
 class RegAct:
-    def __init__(self, preds, ariths, logic_ops, state_1_is_main):
-        self.preds = [Pred(**p) for p in preds]
-        self.ariths = [Arith(**a) for a in ariths]
+    def __init__(self, preds, ariths, logic_ops, state_1_is_main, warning):
+        self.preds = [Pred(warning=warning, **p) for p in preds]
+        self.ariths = [Arith(warning=warning, **a) for a in ariths]
         self.logic_ops = logic_ops
         self.state_1_is_main = state_1_is_main if state_1_is_main != None else True
+        self.warning = warning
     
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
         pred_conds = [p.execute(pre_state_1, pre_state_2, symbol_1, symbol_2) for p in self.preds]
@@ -145,7 +162,8 @@ class RegAct:
             elif self.logic_ops[i] == "or":
                 pred_combos.append(pred_conds[0] | pred_conds[1])
             else:
-                warnings.warn("Null in logical operator.")
+                if self.warning:
+                    warnings.warn("Null in logical operator.")
                 pred_combos.append(pred_conds[0])
         post_state_2 = None
         if len(self.ariths) == 4:
@@ -160,7 +178,7 @@ class RegAct:
         return post_state_1, post_state_2, self.state_1_is_main
 
 
-def simulateRegAct(input, config):
+def simulateRegAct(input, config, warning):
     global bitvecsize
     bitvecsize = config["bitvecsize"]
     symbols_1 = access(config["symbols_1"])
@@ -177,8 +195,7 @@ def simulateRegAct(input, config):
         states_1_is_main = None
         back_to_state = {v : k for k in input["states"] for v in states_1[k]}
 
-    regacts = [RegAct(**r) for r in config["regacts"]]
-
+    regacts = [RegAct(warning=warning, **r) for r in config["regacts"]]
     for transition in input["transitions"]:
         for pre_state_1 in states_1[transition[0]]:
             for pre_state_2 in (states_2[transition[0]] if states_2 != None else [None]):
@@ -190,24 +207,30 @@ def simulateRegAct(input, config):
                 post_state_2 = states_2[transition[2]] if states_2 != None else [None]
 
                 got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
-                got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
+                
+                try:
+                    got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
+                except:
+                    print("Simulation of DFA fails.")
+                    return False
+                if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
+                    print("Simulation of DFA fails.")
+                    return False
 
-                assert(got_state == transition[2])
-                assert(got_state_1 in post_state_1)
-                assert(got_state_2 in post_state_2)
-
-    print("Configuration verified for the DFA.")
+    print("Simulation of DFA succeeds.")
+    return True
 
 
 def main():
-    if (len(sys.argv) < 3):
-        print ("please give input file and configuration")
-        quit()
-    with open(sys.argv[1]) as file:
-        input = json.load(file)
-    with open(sys.argv[2]) as file:
-        config = json.load(file)
-    simulateRegAct(input, config)
+    parser = argparse.ArgumentParser(description='Create DFA configurations.')
+    parser.add_argument('input', type=str)
+    parser.add_argument('config', type=str)
+    parser.add_argument('--warning', action='store_true')
+    args=parser.parse_args()
+
+    input=json.load(open(args.input))
+    config=json.load(open(args.config))
+    simulateRegAct(input, config, warning)
 
 if __name__ == '__main__':
     main()

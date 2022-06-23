@@ -47,16 +47,17 @@ class BoolEnum:
         while(len(q) + len(leaves) < num_leaves):
             parent = q.pop(-1)
             curr_height = parent.height + 1
-            left_child = self.produce_node(curr_height)
             right_child = self.produce_node(curr_height)
+            left_child = self.produce_node(curr_height)
             if curr_height < tree_height: 
-                q.extend([right_child, left_child])
+                q.extend([left_child, right_child])
             else:
-                leaves.extend([left_child, right_child])
+                leaves.extend([right_child, left_child])
             parent.left = left_child
             parent.right = right_child
 
         self.leaves = leaves + q
+        self.leaves.reverse()
         for i, node in enumerate(self.leaves):
             node.leaf = True
             node.name = names[i]
@@ -118,31 +119,37 @@ class Pred:
         self.bitvecsize = bitvecsize
 
         op_names = ['eq', 'ge', 'le', 'neq']
-        sym_names = ["const", "s1", "s2", ]
-        state_names = ["const", "s1"] + (["s2"] if two_slot else [])
-        self.sym_enum = BoolEnum('pred_sym_opt_%d_%d' % (self.regact_id, self.pred_id), sym_names)
-        self.state_enum = BoolEnum('pred_state_opt_%d_%d' % (self.regact_id, self.pred_id), state_names)
+        lhs_names = ["none", "sym1", "sym2", "state1", "sym1_state1", "sym2_state1"] \
+                    + (["state2", "sym1_state2", "sym2_state2"] if two_slot else [])
+        self.lhs_enum = BoolEnum('pred_lhs_%d_%d' % (self.regact_id, self.pred_id), lhs_names)
         self.op_enum = BoolEnum('pred_op_%d_%d' % (self.regact_id, self.pred_id), op_names)
         self.const = BitVec('pred_const_%d_%d' % (regact_id, pred_id), bitvecsize)
 
     def makeDFACond(self):
         constraints = []
         if not self.arith_bin:
-            constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
+            if self.two_slot:
+                constraints.append(Or(self.sym_enum.get_path("sym1"), 
+                                      self.state_enum.get_path("sym2"),
+                                      self.state_enum.get_path("state1"),
+                                      self.state_enum.get_path("state2")))
+            else:
+                constraints.append(Or(self.sym_enum.get_path("sym1"), 
+                                      self.state_enum.get_path("sym2"),
+                                      self.state_enum.get_path("state1")))
         return constraints
 
     def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        sym_vals = [0, symbol_1, symbol_2]
-        state_vals = [0, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
-        lhs = self.sym_enum.gen_val(sym_vals) + self.state_enum.gen_val(state_vals) + self.const
+        lhs_vals = [0, symbol_1, symbol_2, pre_state_1, symbol_1 + pre_state_1, symbol_2 + pre_state_1] \
+                    + ([pre_state_2, symbol_1 + pre_state_2, symbol_2 + pre_state_2] if self.two_slot else [])
+        lhs = self.const + self.lhs_enum.gen_val(lhs_vals)
         op_vals = [lhs == 0, lhs >= 0, lhs <= 0, lhs != 0]
         return self.op_enum.gen_val(op_vals)
 
     def toJSON(self, model):
         config = { "op": self.op_enum.to_string(model),
                    "const": access_int(model, self.const),
-                   "sym_opt": self.sym_enum.to_string(model),
-                   "state_opt": self.state_enum.to_string(model) }
+                   "lhs": self.lhs_enum.to_string(model) }
         return config
 
 class Arith:
@@ -173,8 +180,8 @@ class Arith:
         return constraints
 
     def makeArithCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        sym_vals = [0, symbol_1, symbol_2]
-        state_vals = [0, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
+        sym_vals = [self.sym_const, symbol_1, symbol_2]
+        state_vals = [self.state_const, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
         sym_val = self.sym_enum.gen_val(sym_vals)
         state_val = self.state_enum.gen_val(state_vals) 
         op_vals = [sym_val + state_val, sym_val & state_val, sym_val ^ state_val, sym_val | state_val,
@@ -223,7 +230,7 @@ class RegAct:
             constraints.append(self.state_1_is_main)
         return constraints
 
-    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1, post_state_2, post_state_1_is_main, trans_name):
+    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1_is_main, trans_name):
         constraints = []
 
         pred_vars = [Bool('pred_val_%d_%d_%s' % (self.regact_id, i, trans_name)) for i in range(self.num_pred)]
@@ -243,18 +250,18 @@ class RegAct:
         for var, val in zip(arith_vars, arith_vals):
             constraints.append(var == val)
 
-        logic_constraints = []
+        branch_vals = []
         if self.two_slot:
             if self.four_branch:
-                logic_constraints.append(post_state_1 == If(logic_vars[0], arith_vars[0], arith_vars[2]))
-                logic_constraints.append(post_state_2 == If(logic_vars[1], arith_vars[1], arith_vars[3]))
+                branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[2]))
+                branch_vals.append(If(logic_vars[1], arith_vars[1], arith_vars[3]))
             else:
-                logic_constraints.append(post_state_1 == If(logic_vars[0], arith_vars[0], arith_vars[2]))
-                logic_constraints.append(post_state_2 == If(logic_vars[0], arith_vars[1], arith_vars[3]))
+                branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[2]))
+                branch_vals.append(If(logic_vars[0], arith_vars[1], arith_vars[3]))
             constraints.append(self.state_1_is_main == post_state_1_is_main)
         else:
-            logic_constraints.append(post_state_1 == If(logic_vars[0], arith_vars[0], arith_vars[1]))
-        return constraints, And(logic_constraints)
+            branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[1]))
+        return constraints, branch_vals
 
     def toJSON(self, model):
         config = { "logic_ops": [op_enum.to_string(model) for op_enum in self.op_enums],
@@ -334,8 +341,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2]) if two_slot else states_1[s2]
             constraints.append(main_state_1 != main_state_2)
 
-    set_param("parallel.enable", True)
-    s = Then('simplify', 'solve-eqs', 'reduce-bv-size', 'max-bv-sharing', 'bit-blast', 'qffd', 'sat').solver()  
+    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()  
     s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     if probe: ps = {opt: Probe(opt) for opt in probes()}
@@ -353,20 +359,28 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             post_state_2 = states_2[dst_state] if two_slot else None
             post_state_1_is_main = states_1_is_main[dst_state] if two_slot else None
 
-            logic_constraints = []
+            branch_vals_1 = []
+            if two_slot:
+                branch_vals_2 = []
             for rid in range(num_regact):
-                constr, logic_constr = regacts[rid].makeTransitionCond(
-                    pre_state_1, pre_state_2, symbol_1, symbol_2,
-                    post_state_1, post_state_2, post_state_1_is_main,
+                constr, branch_vals = regacts[rid].makeTransitionCond(
+                    pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1_is_main,
                     "%s_%s_%s" % (src_state, symbol, dst_state))
                 s.add(constr)
-                logic_constraints.append(logic_constr)
+                branch_vals_1.append(branch_vals[0])
+                if two_slot:
+                    branch_vals_2.append(branch_vals[1])
                 if probe: 
                     constraints.extend(constr)
-            new_constr = regact_id[symbol].gen_val(logic_constraints)
-            s.add(new_constr)
-            if probe: 
-                constraints.append(new_constr)
+            branch_constr_1 = post_state_1 == regact_id[symbol].gen_val(branch_vals_1)
+            s.add(branch_constr_1)
+            if two_slot:
+                branch_constr_2 = post_state_2 == regact_id[symbol].gen_val(branch_vals_2)
+                s.add(branch_constr_2)
+            if probe:
+                constraints.append(branch_constr_1)
+                if two_slot:
+                    constraints.append(branch_constr_2)
 
         # if (s.check() == sat):
         #     sys.stderr.write("Sat at the %d th symbol.\n" % (num_lists_solved))
@@ -377,24 +391,22 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         #     sys.exit()
 
     if s.check() == sat:
-        print(s.assertions())
         t1 = time.time()
         if probe: 
             for opt, p in ps.items():
                 sys.stderr.write("%s: %s\n" % (opt, p(And(constraints))))
-        sys.stderr.write("Sat with %d regacts.\n" % num_regact)
         model = s.model()
-        print(s.model().eval(And(s.assertions())))
-
+        safety_check = bool(model.eval(And(s.assertions())))
+        sys.stderr.write("Sat with %d regacts.\n" % num_regact)
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
                         states_1_is_main, regacts, two_slot, bitvecsize)
-        print(json.dumps(config))
-        return True, (t1 - t0), config
+        # print(json.dumps(config))
+        return True, safety_check, (t1 - t0), config
     else:
         t1 = time.time()
         sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
-        print("-1")
-        return False, (t1 - t0), None
+        # print("-1")
+        return False, None, (t1 - t0), None
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create DFA configurations.')

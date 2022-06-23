@@ -4,6 +4,7 @@ import json
 import itertools
 import argparse
 import random
+import time
 
 # constant zero
 def zero(bitvecsize): return BitVecVal(0, bitvecsize)
@@ -119,6 +120,7 @@ class Arith:
         self.dontcare_val = doncare_fun(bitvecsize)
         self.op_1 = Bool('arith_op_1_%d_%d'% (regact_id, arith_id)) #00 -> IR , 01 -> XOR, 10 -> AND, 11 -> Plus
         self.op_2 = Bool('arith_op_2_%d_%d'% (regact_id, arith_id))
+        self.op_3 = Bool('arith_op_3_%d_%d'% (regact_id, arith_id))
         #self.op_xor = Bool('arith_op_xor_%d_%d'% (regact_id, arith_id)) //XOR is else case
         self.sym_const = BitVec('arith_sym_const_%d_%d'% (regact_id, arith_id), bitvecsize)
         self.state_const = BitVec('arith_state_const_%d_%d'% (regact_id, arith_id), bitvecsize)
@@ -142,10 +144,8 @@ class Arith:
             exp_state_choice = pre_state_tuple[0]
         sym_choice = If(self.sym_opt_const,self.sym_const, If(self.sym_opt_which_sym, symbol_1, symbol_2))
         state_choice = If(self.state_opt_const, self.state_const, exp_state_choice)
-        arith_val = If(self.op_1, If(self.op_2, state_choice + sym_choice, state_choice & sym_choice), If(self.op_2, state_choice ^ sym_choice, state_choice | sym_choice))
+        arith_val = If(self.op_1, If(self.op_2, state_choice + sym_choice, state_choice & sym_choice), If(self.op_2, If(self.op_3, state_choice ^ sym_choice, state_choice | sym_choice), If(self.op_3, state_choice - sym_choice, sym_choice - state_choice)))
         return arith_val
-        
-
 
     def toJSON(self, model):
         config = { "op": print_string_name_ordered_from_0([self.op_1, self.op_2], ["|", "^", "&", "+"], model),
@@ -231,6 +231,7 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, 
     return config
 
 def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize):
+    t0 = time.time()
     # constraints
     constraints = []
 
@@ -271,7 +272,8 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             constraints.append(states_1[s1] != states_1[s2])
 
     constraints.append(states_1[input["initial"]] == BitVecVal(0, bitvecsize))
-    s = Then('simplify', 'solve-eqs', 'bit-blast', 'sat').solver()
+    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver() 
+    s.set("timeout", 1800 * 1000)
     s.add(And(constraints))
     for sym in input["sigma"]:
         this_sym_transitions = []
@@ -313,22 +315,22 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             for reg_cons in reg_cons_this_trans:
                 s.add(reg_cons[0]) 
         #if (s.check() == sat):
-        print(sym)
         #else:
         #    print("unsat")
         #    sys.exit()
-    print([len(r.ariths) for r in regacts])
-    print([len(r.preds) for r in regacts])
 
     if s.check() == sat:
+        t1 = time.time()
         sys.stderr.write("Sat with %d regacts." % num_regact)
         model = s.model()
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, two_slot, bitvecsize, num_regact)
-        print(json.dumps(config))
+        safety_check = bool(model.eval(And(s.assertions())))
+        return True, safety_check, (t1 - t0), config
         #print(model)
     else:
+        t1 = time.time()
         sys.stderr.write("unsat")
-        print("-1")
+        return False, None, (t1 - t0), None
 
 
     """while True:
