@@ -170,6 +170,8 @@ class RegAct:
             post_state_1 = arith_exprs[0] if pred_combos[0] else arith_exprs[1]
         return post_state_1, post_state_2, self.state_1_is_main
 
+def string_to_pair(s):
+    return tuple(s.rsplit('_', 1))
 
 def simulateRegAct(input, config, warning):
     global bitvecsize
@@ -178,11 +180,13 @@ def simulateRegAct(input, config, warning):
     symbols_2 = access(config["symbols_2"])
     regact_id = access(config["regact_id"])
     states_1 = access(config["states_1"])
-
+    states_1 = {string_to_pair(k) : v for k, v in states_1.items()}
+    
     if "states_2" in config :
         states_2 = access(config["states_2"])
-        states_1_is_main = config["states_1_is_main"]
-        back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
+        states_2 = {string_to_pair(k) : v for k, v in states_2.items()}
+        states_1_is_main = {string_to_pair(k) : v for k, v in config["states_1_is_main"].items()}
+                back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
         states_2 = {state : [v for k, v in states_2 if state == k[0]] for state in input["states"]}
     else:
         states_2 = None
@@ -208,13 +212,13 @@ def simulateRegAct(input, config, warning):
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
                     print(got_state)
                 except:
-                    print("Simulation of DFA fails.")
+                    print(False)
                     return False
                 if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
-                    print("Simulation of DFA fails.")
+                    print(False)
                     return False
 
-    print("Simulation of DFA succeeds.")
+    print(True)
     return True
 
 
@@ -227,7 +231,7 @@ def main():
 
     input=json.load(open(args.input))
     config=json.load(open(args.config))
-    simulateRegAct(input, config, warning)
+    simulateRegAct(input, config, args.warning)
 
 if __name__ == '__main__':
     main()

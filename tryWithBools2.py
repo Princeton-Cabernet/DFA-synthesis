@@ -325,11 +325,22 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         model = s.model()
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, two_slot, bitvecsize, num_regact)
         safety_check = bool(model.eval(And(s.assertions())))
+        print(True)
+        print(safety_check)
+        print(t1-t0)
+        print(config)
+
         return True, safety_check, (t1 - t0), config
         #print(model)
     else:
         t1 = time.time()
         sys.stderr.write("unsat")
+
+        print(False)
+        print(None)
+        print(t1-t0)
+        print(None)
+
         return False, None, (t1 - t0), None
 
 

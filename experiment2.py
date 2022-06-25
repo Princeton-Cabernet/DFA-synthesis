@@ -23,14 +23,15 @@ if __name__ == '__main__':
                                     "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2},
               "FourBranchSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
                                      "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2}}
-
+    
     for param_name, file in itertools.product(params.keys(), files):
         param = params[param_name]
-        path = "examples/%s" % file
-        jsonpath = f"eval/model_{param_name}_{file}.json"
-        args_strs = [(f"--{arg}={val}" if type(val)!= bool else (f"--{arg}" if val else "")) for arg,val in param.items()]
-        output = f"eval/result_{param_name}_{file}.log"
-        command = "tsp bash -c \"python3 genDFA.py " + path + " " + " ".join(args_strs) + f" --jsonpath={jsonpath} > " + output + "; python3 simulator.py " + path + " " + jsonpath + " >> " + output + "\""
-        
-        print(command)
+        if param_name not in ["FourBranch", "TwoCondSplitNode", "TwoSplitSplitNode", "FourBranchSplitNode"]:
+            path = "examples/%s" % file
+            
+            args_strs = [(f"--{arg}={val}" if type(val)!= bool else (f"--{arg}" if val else "")) for arg,val in param.items()\
+                         if arg not in ["probe", "num_split_nodes", "num_arith", "timeout"]]
+            output = f"result_{param_name}_{file}.log"
+            command = "tsp bash -c \"python3 tryWithBools2.py " + path + " " + " ".join(args_strs) + " > " + output + "\""
+            print(command)
 

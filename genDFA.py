@@ -260,10 +260,10 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["symbols_1"] = { sym : access_int(model, val) for sym, val in symbols_1.items() }
     config["symbols_2"] = { sym : access_int(model, val) for sym, val in symbols_2.items() }
     config["regact_id"] = { sym : int(val.to_string(model)) for sym, val in regact_id.items()}
-    config["states_1"] = { state : access_int(model, val) for state, val in states_1.items() }
+    config["states_1"] = { pair_to_string(state) : access_int(model, val) for state, val in states_1.items() }
     if two_slot:
-        config["states_2"] = { state : access_int(model, val) for state, val in states_2.items() }
-        config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
+        config["states_2"] = { pair_to_string(state) : access_int(model, val) for state, val in states_2.items() }
+        config["states_1_is_main"] = { pair_to_string(state) : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
@@ -287,11 +287,11 @@ def orderByState(transitions):
 
 def pair_to_string(state_pair):
     if state_pair[1] == None:
-        return state_pair[0]
+        return  "%s_%d" % (state_pair[0], 0)
     else:
         return "%s_%d" % state_pair
 
-def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes):
+def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes, jsonpath=None):
     t0 = time.time()
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
 
@@ -357,7 +357,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
                 constraints.append(main_state_1 != main_state_2)
 
     #set_param("parallel.enable", True)
-    s = Then('simplify', 'solve-eqs', 'reduce-bv-size', 'max-bv-sharing', 'bit-blast', 'qffd', 'sat').solver()  
+    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()  
     s.set("timeout", timeout * 1000)
     s.add(constraints)
     if probe: ps = {opt: Probe(opt) for opt in probes()}
@@ -410,7 +410,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         t1 = time.time()
         if probe: 
             for opt, p in ps.items():
-                sys.stderr.write("%s: %s\n" % (opt, p(And(constraints))))
+                print("%s: %s\n" % (opt, p(And(constraints))))
         sys.stderr.write("Sat with %d regacts.\n" % num_regact)
         model = s.model()
         safety_check = s.model().eval(And(s.assertions()))
@@ -419,8 +419,12 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         print(True)
         print(safety_check)
         print(t1 - t0)
-        print(config)
-        
+
+        if jsonpath == None:
+            print(config)
+        else:
+            with open(jsonpath, "w") as f:
+                json.dump(config, f)
         return True, safety_check, (t1 - t0), config
     else:
         t1 = time.time()
@@ -446,6 +450,7 @@ if __name__ == '__main__':
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--probe', action='store_true')
     parser.add_argument('--num_split_nodes', type=int, default = 1)
+    parser.add_argument('--jsonpath', type=str, default=None)
     args=parser.parse_args()
 
     # assertion when four_branch == True: two_slot == True, two_cond == True
@@ -453,7 +458,7 @@ if __name__ == '__main__':
 
     input_json=json.load(open(args.input))
     createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, 
-              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.num_split_nodes)
+              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.num_split_nodes, args.jsonpath)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
