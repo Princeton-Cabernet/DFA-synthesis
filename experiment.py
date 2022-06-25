@@ -1,6 +1,3 @@
-import sys
-import json
-import pickle
 import itertools
 
 if __name__ == '__main__':
@@ -9,15 +6,15 @@ if __name__ == '__main__':
             + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
 
     params = {"SingleRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 1,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False},
+                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
               "FourRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False},
+                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
               "TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False}, 
+                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}, 
               "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False},
+                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
               "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False}}
+                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}}
 
     for param_name, file in itertools.product(params.keys(), files):
         param = params[param_name]

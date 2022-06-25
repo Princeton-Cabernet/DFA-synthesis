@@ -4,6 +4,7 @@ import time
 import math
 import itertools
 import argparse
+import collections
 
 # for bools a,b,c return ((a & !b & !c) || (!a & b & !c) || (!a & !b & c))
 def only_one_is_true(list_of_bools):
@@ -119,37 +120,31 @@ class Pred:
         self.bitvecsize = bitvecsize
 
         op_names = ['eq', 'ge', 'le', 'neq']
-        lhs_names = ["none", "sym1", "sym2", "state1", "sym1_state1", "sym2_state1"] \
-                    + (["state2", "sym1_state2", "sym2_state2"] if two_slot else [])
-        self.lhs_enum = BoolEnum('pred_lhs_%d_%d' % (self.regact_id, self.pred_id), lhs_names)
+        sym_names = ["const", "s1", "s2", ]
+        state_names = ["const", "s1"] + (["s2"] if two_slot else [])
+        self.sym_enum = BoolEnum('pred_sym_opt_%d_%d' % (self.regact_id, self.pred_id), sym_names)
+        self.state_enum = BoolEnum('pred_state_opt_%d_%d' % (self.regact_id, self.pred_id), state_names)
         self.op_enum = BoolEnum('pred_op_%d_%d' % (self.regact_id, self.pred_id), op_names)
         self.const = BitVec('pred_const_%d_%d' % (regact_id, pred_id), bitvecsize)
 
     def makeDFACond(self):
         constraints = []
         if not self.arith_bin:
-            if self.two_slot:
-                constraints.append(Or(self.sym_enum.get_path("sym1"), 
-                                      self.state_enum.get_path("sym2"),
-                                      self.state_enum.get_path("state1"),
-                                      self.state_enum.get_path("state2")))
-            else:
-                constraints.append(Or(self.sym_enum.get_path("sym1"), 
-                                      self.state_enum.get_path("sym2"),
-                                      self.state_enum.get_path("state1")))
+            constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
         return constraints
 
     def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        lhs_vals = [0, symbol_1, symbol_2, pre_state_1, symbol_1 + pre_state_1, symbol_2 + pre_state_1] \
-                    + ([pre_state_2, symbol_1 + pre_state_2, symbol_2 + pre_state_2] if self.two_slot else [])
-        lhs = self.const + self.lhs_enum.gen_val(lhs_vals)
+        sym_vals = [0, symbol_1, symbol_2]
+        state_vals = [0, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
+        lhs = self.sym_enum.gen_val(sym_vals) + self.state_enum.gen_val(state_vals) + self.const
         op_vals = [lhs == 0, lhs >= 0, lhs <= 0, lhs != 0]
         return self.op_enum.gen_val(op_vals)
 
     def toJSON(self, model):
         config = { "op": self.op_enum.to_string(model),
                    "const": access_int(model, self.const),
-                   "lhs": self.lhs_enum.to_string(model) }
+                   "sym_opt": self.sym_enum.to_string(model),
+                   "state_opt": self.state_enum.to_string(model) }
         return config
 
 class Arith:
@@ -230,7 +225,7 @@ class RegAct:
             constraints.append(self.state_1_is_main)
         return constraints
 
-    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1_is_main, trans_name):
+    def makeTransitionCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2, trans_name):
         constraints = []
 
         pred_vars = [Bool('pred_val_%d_%d_%s' % (self.regact_id, i, trans_name)) for i in range(self.num_pred)]
@@ -250,18 +245,7 @@ class RegAct:
         for var, val in zip(arith_vars, arith_vals):
             constraints.append(var == val)
 
-        branch_vals = []
-        if self.two_slot:
-            if self.four_branch:
-                branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[2]))
-                branch_vals.append(If(logic_vars[1], arith_vars[1], arith_vars[3]))
-            else:
-                branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[2]))
-                branch_vals.append(If(logic_vars[0], arith_vars[1], arith_vars[3]))
-            constraints.append(self.state_1_is_main == post_state_1_is_main)
-        else:
-            branch_vals.append(If(logic_vars[0], arith_vars[0], arith_vars[1]))
-        return constraints, branch_vals
+        return constraints, logic_vars, arith_vars, self.state_1_is_main
 
     def toJSON(self, model):
         config = { "logic_ops": [op_enum.to_string(model) for op_enum in self.op_enums],
@@ -276,9 +260,9 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["symbols_1"] = { sym : access_int(model, val) for sym, val in symbols_1.items() }
     config["symbols_2"] = { sym : access_int(model, val) for sym, val in symbols_2.items() }
     config["regact_id"] = { sym : int(val.to_string(model)) for sym, val in regact_id.items()}
-    config["states_1"] = { state : [access_int(model, val)] for state, val in states_1.items() }
+    config["states_1"] = { state : access_int(model, val) for state, val in states_1.items() }
     if two_slot:
-        config["states_2"] = { state : [access_int(model, val)] for state, val in states_2.items() }
+        config["states_2"] = { state : access_int(model, val) for state, val in states_2.items() }
         config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
@@ -301,9 +285,39 @@ def orderByState(transitions):
             result[transition[2]] = [transition]
     return sorted(result.values(), key = len)
 
-def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe):
+def pair_to_string(state_pair):
+    if state_pair[1] == None:
+        return state_pair[0]
+    else:
+        return "%s_%d" % state_pair
+
+def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes):
     t0 = time.time()
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
+
+    # graph analysis, in_degree
+    in_symbols=collections.defaultdict(set)
+    out_edges=collections.defaultdict(set)
+    for src,sym,dst in transitions:
+        in_symbols[dst].add(sym)
+        out_edges[src].add(dst)
+    is_split=lambda dst:(len(out_edges[dst])<= 1) and (len(in_symbols[dst])>1)
+    # split_to_str=lambda s:(f'spl[{s[0]}(<-{s[1]})]' if s[1]!=None else s[0])
+    expanded_states=set()
+    split_nodes={}
+    for dst in states:
+        if is_split(dst):
+            sys.stderr.write(f'notice: state {dst} is split into {num_split_nodes} nodes.\n')
+            split_nodes[dst]=[(dst, i) for i in range(num_split_nodes)]
+        else:
+            split_nodes[dst]=[(dst, None)]
+        expanded_states.update(split_nodes[dst])
+    expanded_transitions = []
+    for src, sym, dst in transitions:
+        if is_split(src):
+            expanded_transitions.extend([[(src, i), sym, dst] for i in range(num_split_nodes)])
+        else:
+            expanded_transitions.append([(src,None), sym, dst])
 
     # constraints
     constraints = []
@@ -329,58 +343,59 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     states_2 = {}
     states_1_is_main = {}
 
-    for state in states:
-        states_1[state] = BitVec("state_1_%s" % state, bitvecsize)
+    for state in expanded_states:
+        states_1[state] = BitVec("state_1_%s" % pair_to_string(state), bitvecsize)
         if two_slot:
-            states_2[state] = BitVec("state_2_%s" % state, bitvecsize)
-            states_1_is_main[state] = Bool('state_1_is_main_%s' % state)
+            states_2[state] = BitVec("state_2_%s" % pair_to_string(state), bitvecsize)
+            states_1_is_main[state] = Bool('state_1_is_main_%s' % pair_to_string(state))
 
-    for s1, s2 in itertools.product(states_1.keys(), states_1.keys()):
+    for s1, s2 in itertools.combinations(states_1.keys(), 2):
         if s1 != s2: 
             main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1]) if two_slot else states_1[s1]
             main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2]) if two_slot else states_1[s2]
-            constraints.append(main_state_1 != main_state_2)
+            if s1[0] != s2[0]:
+                constraints.append(main_state_1 != main_state_2)
 
-    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()  
+    #set_param("parallel.enable", True)
+    s = Then('simplify', 'solve-eqs', 'reduce-bv-size', 'max-bv-sharing', 'bit-blast', 'qffd', 'sat').solver()  
     s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     if probe: ps = {opt: Probe(opt) for opt in probes()}
     # num_lists_solved = 0
-    transitions = orderBySymbol(transitions)
+    for (src_state_split, symbol, dst_state) in expanded_transitions:
+        pre_state_1 = states_1[src_state_split]
+        pre_state_2 = states_2[src_state_split] if two_slot else None
+        symbol_1 = symbols_1[symbol]
+        symbol_2 = symbols_2[symbol]
 
-    for transition_list in transitions:
-        #per transition
-        for (src_state, symbol, dst_state) in transition_list:
-            pre_state_1 = states_1[src_state]
-            pre_state_2 = states_2[src_state] if two_slot else None
-            symbol_1 = symbols_1[symbol]
-            symbol_2 = symbols_2[symbol]
-            post_state_1 = states_1[dst_state]
-            post_state_2 = states_2[dst_state] if two_slot else None
-            post_state_1_is_main = states_1_is_main[dst_state] if two_slot else None
+        s1explist = []
+        s2explist = []
+        tuple_options = range(num_split_nodes) if is_split(dst_state) else [None]
+        for rid in range(num_regact):
+            constr, logic_vars, arith_vars, state_1_is_main = regacts[rid].makeTransitionCond(
+                pre_state_1, pre_state_2, symbol_1, symbol_2,
+                "%s_%d_%s_%s" % (src_state_split[0], 0 if src_state_split[1] == None else src_state_split[1], symbol, dst_state))
+            s.add(constr)
+            if two_slot:
+                s1exp = If(logic_vars[0], arith_vars[0], arith_vars[2])
+                if four_branch:
+                    s2exp = If(logic_vars[1], arith_vars[1], arith_vars[3])
+                else:
+                    s2exp = If(logic_vars[0], arith_vars[1], arith_vars[3])
+                s2explist.append(s2exp)
+                s.add(And([state_1_is_main == states_1_is_main[(dst_state, o)] for o in tuple_options]))
+            else:
+                s1exp = If(logic_vars[0], arith_vars[0], arith_vars[1])
+            s1explist.append(s1exp)
+        
+        s.add(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
+        if two_slot:
+            s.add(Or([states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist) for o in tuple_options]))
 
-            branch_vals_1 = []
-            if two_slot:
-                branch_vals_2 = []
-            for rid in range(num_regact):
-                constr, branch_vals = regacts[rid].makeTransitionCond(
-                    pre_state_1, pre_state_2, symbol_1, symbol_2, post_state_1_is_main,
-                    "%s_%s_%s" % (src_state, symbol, dst_state))
-                s.add(constr)
-                branch_vals_1.append(branch_vals[0])
-                if two_slot:
-                    branch_vals_2.append(branch_vals[1])
-                if probe: 
-                    constraints.extend(constr)
-            branch_constr_1 = post_state_1 == regact_id[symbol].gen_val(branch_vals_1)
-            s.add(branch_constr_1)
-            if two_slot:
-                branch_constr_2 = post_state_2 == regact_id[symbol].gen_val(branch_vals_2)
-                s.add(branch_constr_2)
-            if probe:
-                constraints.append(branch_constr_1)
-                if two_slot:
-                    constraints.append(branch_constr_2)
+        if probe: 
+            constraints.extend(constr)
+        if probe: 
+            constraints.append(new_constr)
 
         # if (s.check() == sat):
         #     sys.stderr.write("Sat at the %d th symbol.\n" % (num_lists_solved))
@@ -391,21 +406,20 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         #     sys.exit()
 
     if s.check() == sat:
+        #print(s.assertions())
         t1 = time.time()
         if probe: 
             for opt, p in ps.items():
                 sys.stderr.write("%s: %s\n" % (opt, p(And(constraints))))
-        model = s.model()
-        safety_check = bool(model.eval(And(s.assertions())))
         sys.stderr.write("Sat with %d regacts.\n" % num_regact)
+        model = s.model()
+        safety_check = s.model().eval(And(s.assertions()))
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
                         states_1_is_main, regacts, two_slot, bitvecsize)
-        # print(json.dumps(config))
         return True, safety_check, (t1 - t0), config
     else:
         t1 = time.time()
         sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
-        # print("-1")
         return False, None, (t1 - t0), None
 
 if __name__ == '__main__':
@@ -420,6 +434,7 @@ if __name__ == '__main__':
     parser.add_argument('--bitvecsize', type=int, default=8)
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--probe', action='store_true')
+    parser.add_argument('--split_states', type=int, default = 1)
     args=parser.parse_args()
 
     # assertion when four_branch == True: two_slot == True, two_cond == True
@@ -427,7 +442,7 @@ if __name__ == '__main__':
 
     input_json=json.load(open(args.input))
     createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, 
-              args.num_regact, args.bitvecsize, args.timeout, args.probe)
+              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.split_states)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}

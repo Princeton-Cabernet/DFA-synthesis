@@ -18,43 +18,37 @@ def unsign(val, num_bits):
     return val & (bound - 1)
 
 class Pred:
-    def __init__(self, op, const, lhs, warning):
+    def __init__(self, op, const, sym_opt, state_opt, warning):
         self.op = op
         self.const = const
-        self.lhs = lhs
+        self.sym_opt = sym_opt
+        self.state_opt = state_opt
         self.warning = warning
 
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.lhs == "none":
-            lhs = 0
-        elif self.lhs == "sym1":
-            lhs = symbol_1
-        elif self.lhs == "sym2":
-            lhs = symbol_2
-        elif self.lhs == "state1":
-            lhs = pre_state_1
-        elif self.lhs == "sym1_state1":
-            lhs = symbol_1 + pre_state_1
-        elif self.lhs == "sym2_state1":
-            lhs = symbol_2 + pre_state_1
-        elif self.lhs == "state2":
-            lhs = pre_state_2
-        elif self.lhs == "sym1_state2":
-            lhs = symbol_1 + pre_state_2
-        elif self.lhs == "sym2_state2":
-            lhs = symbol_2 + pre_state_2
+        if self.sym_opt == "s1":
+            pred_sym = symbol_1
+        elif self.sym_opt == "s2":
+            pred_sym = symbol_2
+        elif self.sym_opt == "const":
+            pred_sym = 0
         else:
             if self.warning:
-                warnings.warn("Null in predicate lhs.")
-            lhs = 0
-        if self.const == None:
-            if self.warning:
-                warnings.warn("Null in predicate constant.")
-            pred_const = 0
+                warnings.warn("Null in predicate sym.")
+            pred_sym = 0
+        if self.state_opt == "s1":
+            pred_state = pre_state_1
+        elif self.state_opt == "s2":
+            pred_state = pre_state_2
+        elif self.state_opt == "const":
+            pred_state = 0
         else:
-            pred_const = self.const
+            if self.warning:
+                warnings.warn("Null in predicate state.")
+            pred_state = 0
+        pred_const = 0 if self.const == None else self.const
         global bitvecsize
-        pred_arg = sign(lhs + pred_const, bitvecsize)
+        pred_arg = sign(pred_state + pred_sym + pred_const, bitvecsize)
         if self.op == "eq":
             return pred_arg == 0
         elif self.op == "ge":
@@ -64,8 +58,7 @@ class Pred:
         elif self.op == "neq":
             return pred_arg != 0
         else:
-            if self.warning:
-                warnings.warn("Null in predicate operator.")
+            warnings.warn("Null in predicate operator.")
             return pred_arg == 0
 
 class Arith:
@@ -184,17 +177,19 @@ def simulateRegAct(input, config, warning):
     symbols_1 = access(config["symbols_1"])
     symbols_2 = access(config["symbols_2"])
     regact_id = access(config["regact_id"])
-    states_1 = access(config["states_1"], [])
-    
+    states_1 = access(config["states_1"])
+
     if "states_2" in config :
-        states_2 = access(config["states_2"], [])
+        states_2 = access(config["states_2"])
         states_1_is_main = config["states_1_is_main"]
-        back_to_state = {v : k for k in input["states"] for v in (states_1[k] if states_1_is_main[k] else states_2[k])}
+        back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
+        states_2 = {state : [v for k, v in states_2 if state == k[0]] for state in input["states"]}
     else:
         states_2 = None
         states_1_is_main = None
-        back_to_state = {v : k for k in input["states"] for v in states_1[k]}
+        back_to_state = {v : k[0] for k, v in states_1}
 
+    states_1 = {state : [v for k, v in states_1 if state == k[0]] for state in input["states"]}
     regacts = [RegAct(warning=warning, **r) for r in config["regacts"]]
     for transition in input["transitions"]:
         for pre_state_1 in states_1[transition[0]]:
@@ -209,7 +204,9 @@ def simulateRegAct(input, config, warning):
                 got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
                 
                 try:
+                    print(got_state_1)
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
+                    print(got_state)
                 except:
                     print("Simulation of DFA fails.")
                     return False
