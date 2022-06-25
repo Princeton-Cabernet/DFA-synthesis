@@ -28,8 +28,8 @@ if __name__ == '__main__':
         param = params[param_name]
         path = "examples/%s" % file
 
-        args_strs = [f"--{arg}={val}" for arg,val in param.items()]
+        args_strs = [(f"--{arg}={val}" if type(val)!= bool else (f"--{arg}" if val else "")) for arg,val in param.items()]
         output = f"result_{param_name}_{file}.log"
-        command = "tsp python3 genDFA.py " + " ".join(args_strs) + " \> " + output
+        command = "tsp bash -c \"python3 genDFA.py " + path + " " + " ".join(args_strs) + " > " + output + "\""
         print(command)
 

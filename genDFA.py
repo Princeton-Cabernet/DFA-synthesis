@@ -359,7 +359,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     #set_param("parallel.enable", True)
     s = Then('simplify', 'solve-eqs', 'reduce-bv-size', 'max-bv-sharing', 'bit-blast', 'qffd', 'sat').solver()  
     s.set("timeout", timeout * 1000)
-    s.add(And(constraints))
+    s.add(constraints)
     if probe: ps = {opt: Probe(opt) for opt in probes()}
     # num_lists_solved = 0
     for (src_state_split, symbol, dst_state) in expanded_transitions:
@@ -371,11 +371,12 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         s1explist = []
         s2explist = []
         tuple_options = range(num_split_nodes) if is_split(dst_state) else [None]
+        constr_all = []
         for rid in range(num_regact):
             constr, logic_vars, arith_vars, state_1_is_main = regacts[rid].makeTransitionCond(
                 pre_state_1, pre_state_2, symbol_1, symbol_2,
                 "%s_%d_%s_%s" % (src_state_split[0], 0 if src_state_split[1] == None else src_state_split[1], symbol, dst_state))
-            s.add(constr)
+            constr_all.extend(constr)
             if two_slot:
                 s1exp = If(logic_vars[0], arith_vars[0], arith_vars[2])
                 if four_branch:
@@ -383,19 +384,18 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
                 else:
                     s2exp = If(logic_vars[0], arith_vars[1], arith_vars[3])
                 s2explist.append(s2exp)
-                s.add(And([state_1_is_main == states_1_is_main[(dst_state, o)] for o in tuple_options]))
+                constr_all.append(And([state_1_is_main == states_1_is_main[(dst_state, o)] for o in tuple_options]))
             else:
                 s1exp = If(logic_vars[0], arith_vars[0], arith_vars[1])
             s1explist.append(s1exp)
-        
-        s.add(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
-        if two_slot:
-            s.add(Or([states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist) for o in tuple_options]))
 
+        constr_all.append(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
+        if two_slot:
+            constr_all.append(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
+
+        s.add(constr_all)                  
         if probe: 
-            constraints.extend(constr)
-        if probe: 
-            constraints.append(new_constr)
+            constraints.extend(constr_all)
 
         # if (s.check() == sat):
         #     sys.stderr.write("Sat at the %d th symbol.\n" % (num_lists_solved))
