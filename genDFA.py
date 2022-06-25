@@ -416,10 +416,21 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         safety_check = s.model().eval(And(s.assertions()))
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
                         states_1_is_main, regacts, two_slot, bitvecsize)
+        print(True)
+        print(safety_check)
+        print(t1 - t0)
+        print(config)
+        
         return True, safety_check, (t1 - t0), config
     else:
         t1 = time.time()
         sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
+
+        print(False)
+        print(None)
+        print(t1 - t0)
+        print(None)
+
         return False, None, (t1 - t0), None
 
 if __name__ == '__main__':
@@ -434,7 +445,7 @@ if __name__ == '__main__':
     parser.add_argument('--bitvecsize', type=int, default=8)
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--probe', action='store_true')
-    parser.add_argument('--split_states', type=int, default = 1)
+    parser.add_argument('--num_split_nodes', type=int, default = 1)
     args=parser.parse_args()
 
     # assertion when four_branch == True: two_slot == True, two_cond == True
@@ -442,7 +453,7 @@ if __name__ == '__main__':
 
     input_json=json.load(open(args.input))
     createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, 
-              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.split_states)
+              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.num_split_nodes)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
