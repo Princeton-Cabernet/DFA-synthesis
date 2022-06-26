@@ -2,8 +2,11 @@ import json
 
 def readlog(fn): #read 3rd line
     with open(fn,'r') as f:
-        lastline=f.readlines()[2]
-        return lastline.strip()
+        lines=[l.strip() for l in f.readlines()]
+        if lines[0]=='False':
+            return 'unsat'
+        assert(lines[1]=='True')
+        return lines[2]
 
 if __name__ == '__main__':
     files = ["zoom_simple.json", "mobiledevice.json", "tcp_open.json", "simple.json"] \
