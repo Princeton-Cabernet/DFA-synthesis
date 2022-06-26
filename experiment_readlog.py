@@ -2,18 +2,15 @@ import json
 
 def readlog(fn): #read 3rd line
     with open(fn,'r') as f:
-        lines = f.readlines()
-        check1 = lines[0].strip()
-        check2 = lines[1].strip()
-        lastline = lines[2].strip()
-        check3 = lines[3].strip() if len(lines) == 4 else "True"
-        lastline = "{:.2f}".format(float(lastline))
+        lines=[l.strip() for l in f.readlines()]
+        check3 = lines[3] if len(lines) == 4 else "True"
+        lastline = "{:.2f}".format(float(lines[2]))
 
-        if check1 == "True":
-            if check2 == "True" and check3 == "True":
+        if lines[0] == "True":
+            if lines[1] == "True" and check3 == "True":
                 return lastline.strip()
             else:
-                return "unchecked"
+                return "ERROR"
         else:
             return "unsat_" + lastline.strip()
 
