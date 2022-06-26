@@ -186,7 +186,7 @@ def simulateRegAct(input, config, warning):
         states_2 = access(config["states_2"])
         states_2 = {string_to_pair(k) : v for k, v in states_2.items()}
         states_1_is_main = {string_to_pair(k) : v for k, v in config["states_1_is_main"].items()}
-                back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
+        back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
         states_2 = {state : [v for k, v in states_2 if state == k[0]] for state in input["states"]}
     else:
         states_2 = None

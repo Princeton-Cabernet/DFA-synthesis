@@ -7,22 +7,24 @@ if __name__ == '__main__':
 
     files = ["zoom_simple.json"]
     
-    params = {"SingleRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 1,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
-              "FourRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
-              "TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}, 
-              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
-              "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
-              "TwoCondSplitNode" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                    "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2},
-              "TwoSplitSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
-                                    "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2},
-              "FourBranchSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
-                                     "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2}}
+#    params = {"SingleRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 1,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
+#              "FourRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
+#              "TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}, 
+#              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
+#              "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
+#              "TwoCondSplitNode" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
+#                                    "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2},
+#              "TwoSlotSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
+#                                    "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2},
+#              "FourBranchSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
+#                                     "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2}}
+
+    params = {"TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4, "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}}
 
     directory = "/media/data/mengying/P4DFA/eval_seed_1"
     
