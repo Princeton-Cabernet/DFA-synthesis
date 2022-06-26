@@ -6,7 +6,7 @@ if __name__ == '__main__':
 #            + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
 
     files = ["zoom_simple.json"]
-
+    
     params = {"SingleRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 1,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
               "FourRegAct" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
@@ -24,13 +24,15 @@ if __name__ == '__main__':
               "FourBranchSplitNode" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
                                      "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 2}}
 
+    directory = "/media/data/mengying/P4DFA/eval_seed_1"
+    
     for param_name, file in itertools.product(params.keys(), files):
         param = params[param_name]
         path = "examples/%s" % file
-        jsonpath = f"eval/model_{param_name}_{file}.json"
+        jsonpath = f"{directory}/model_{param_name}_{file}.json"
         args_strs = [(f"--{arg}={val}" if type(val)!= bool else (f"--{arg}" if val else "")) for arg,val in param.items()]
-        output = f"eval/result_{param_name}_{file}.log"
+        output = f"{directory}/result_{param_name}_{file}.log"
         command = "tsp bash -c \"python3 genDFA.py " + path + " " + " ".join(args_strs) + f" --jsonpath={jsonpath} > " + output + "; python3 simulator.py " + path + " " + jsonpath + " >> " + output + "\""
-        
+
         print(command)
 

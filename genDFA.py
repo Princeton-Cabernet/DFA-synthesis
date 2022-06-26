@@ -357,7 +357,8 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
                 constraints.append(main_state_1 != main_state_2)
 
     #set_param("parallel.enable", True)
-    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()  
+    s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver()
+    set_option('smt.random_seed', 1)
     s.set("timeout", timeout * 1000)
     s.add(constraints)
     if probe: ps = {opt: Probe(opt) for opt in probes()}
