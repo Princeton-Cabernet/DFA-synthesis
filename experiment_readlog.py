@@ -20,11 +20,10 @@ if __name__ == '__main__':
 #            + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
 
     files =  ["zoom_simple.json"]
-#    params = ["SingleRegAct","FourRegAct","TwoCond","TwoSlot","FourBranch","TwoCondSplitNode","TwoSlotSplitNode","FourBranchSplitNode"]
-
-    params = ["TwoCond"]
-
-    directory = "/media/data/mengying/P4DFA/eval_seed_1"
+    params = ["SingleRegAct","FourRegAct","TwoCond","TwoSlot","FourBranch","TwoCondSplitNode","TwoSlotSplitNode","FourBranchSplitNode"]
+    params = ["SingleRegAct","FourRegAct","TwoCond","TwoSlot", "FourBranch"]
+    
+    directory = "/media/data/mengying/P4DFA/eval_gendfa_stable"
 
     print('input\t'+'\t '.join(params))
     for f in files:

@@ -328,7 +328,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         print(True)
         print(safety_check)
         print(t1-t0)
-        print(config)
+        # print(config)
 
         return True, safety_check, (t1 - t0), config
         #print(model)
@@ -339,7 +339,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         print(False)
         print(None)
         print(t1-t0)
-        print(None)
+        # print(None)
 
         return False, None, (t1 - t0), None
 

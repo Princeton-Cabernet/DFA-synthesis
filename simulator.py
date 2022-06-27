@@ -1,6 +1,7 @@
 import json
 import argparse
 import warnings
+import traceback
 
 bitvecsize = 0
 
@@ -181,19 +182,20 @@ def simulateRegAct(input, config, warning):
     regact_id = access(config["regact_id"])
     states_1 = access(config["states_1"])
     states_1 = {string_to_pair(k) : v for k, v in states_1.items()}
-    
+
     if "states_2" in config :
         states_2 = access(config["states_2"])
         states_2 = {string_to_pair(k) : v for k, v in states_2.items()}
         states_1_is_main = {string_to_pair(k) : v for k, v in config["states_1_is_main"].items()}
         back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
-        states_2 = {state : [v for k, v in states_2 if state == k[0]] for state in input["states"]}
+        states_2 = {state : [v for k, v in states_2.items() if state == k[0]] for state in input["states"]}
     else:
         states_2 = None
         states_1_is_main = None
-        back_to_state = {v : k[0] for k, v in states_1}
+        back_to_state = {v : k[0] for k, v in states_1.items()}
 
-    states_1 = {state : [v for k, v in states_1 if state == k[0]] for state in input["states"]}
+    states_1 = {state : [v for k, v in states_1.items() if state == k[0]] for state in input["states"]}
+
     regacts = [RegAct(warning=warning, **r) for r in config["regacts"]]
     for transition in input["transitions"]:
         for pre_state_1 in states_1[transition[0]]:
@@ -206,12 +208,11 @@ def simulateRegAct(input, config, warning):
                 post_state_2 = states_2[transition[2]] if states_2 != None else [None]
 
                 got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
-                
+
                 try:
-                    print(got_state_1)
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
-                    print(got_state)
                 except:
+                    traceback.print_exc()
                     print(False)
                     return False
                 if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
