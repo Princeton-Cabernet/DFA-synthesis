@@ -1,0 +1,9 @@
+{
+    "states" : ["a", "b", "c"], 
+    "sigma" : ["x", "y"], 
+    "transitions" : [["a","x","a"], ["a","y","b"], [
+        "b","x","b"], ["b","y","c"], 
+        ["c","x","c"], ["c","y","c"]], 
+    "initial" : "a",
+    "accepting" : ["c"]
+}

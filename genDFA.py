@@ -145,7 +145,7 @@ class Arith:
         self.two_slot = two_slot
         self.bitvecsize = bitvecsize
 
-        op_names = ['plus', 'and', 'xor', 'or', 'sub', 'subr', 'nand', 'andca', 'andcb', 'nor', 'orca', 'orcb', 'xnor']
+        op_names = ['plus', 'sub', 'subr', 'xor', 'and', 'or', 'nand', 'andca', 'andcb', 'nor', 'orca', 'orcb', 'xnor']
         op_names = op_names[:num_arith]
         sym_names = ["const", "s1", "s2"]
         state_names = ["const", "s1"] + ( ["s2"] if two_slot else [] )
@@ -168,8 +168,8 @@ class Arith:
         state_vals = [self.state_const, pre_state_1] + ( [pre_state_2] if self.two_slot else [] )
         sym_val = self.sym_enum.gen_val(sym_vals)
         state_val = self.state_enum.gen_val(state_vals) 
-        op_vals = [sym_val + state_val, sym_val & state_val, sym_val ^ state_val, sym_val | state_val,
-                   sym_val - state_val, state_val - sym_val,
+        op_vals = [sym_val + state_val, sym_val - state_val, state_val - sym_val, 
+                   sym_val ^ state_val, sym_val & state_val, sym_val | state_val,
                    ~ (sym_val & state_val), (~ sym_val) & state_val, sym_val & (~ state_val),
                    ~ (sym_val | state_val), (~ sym_val) | state_val, sym_val | (~ state_val),
                    ~ (sym_val ^ state_val)]
