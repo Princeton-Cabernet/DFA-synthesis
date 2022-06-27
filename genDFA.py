@@ -287,11 +287,12 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     for src,sym,dst in transitions:
         in_symbols[dst].add(sym)
         out_edges[src].add(dst)
-    is_split=lambda dst:(len(out_edges[dst])<= 1) and (len(in_symbols[dst])>1)
+    is_split=lambda dst:(len(out_edges[dst])<= 2) and (len(in_symbols[dst])>1)
     # split_to_str=lambda s:(f'spl[{s[0]}(<-{s[1]})]' if s[1]!=None else s[0])
     expanded_states=set()
     split_nodes={}
     for dst in states:
+        print(out_edges[dst], len(in_symbols[dst]))
         if is_split(dst):
             sys.stderr.write(f'notice: state {dst} is split into {num_split_nodes} nodes.\n')
             split_nodes[dst]=[(dst, i) for i in range(num_split_nodes)]
@@ -374,17 +375,12 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             else:
                 s1exp = If(logic_vars[0], arith_vars[0], arith_vars[1])
             s1explist.append(s1exp)
-
-        if num_split_nodes == 1:
-            constr_all.append(states_1[(dst_state, 0)] == regact_id[symbol].gen_val(s1explist))
-            if two_slot:
-                constr_all.append(states_1_is_main[(dst_state, 0)] == regact_id[symbol].gen_val(mainlist))
-                constr_all.append(states_2[(dst_state, 0)] == regact_id[symbol].gen_val(s2explist))
+        if two_slot:
+            constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
+                states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist), \
+                states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist)) for o in tuple_options]))
         else:
             constr_all.append(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
-            if two_slot:
-                constr_all.append(Or([states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist) for o in tuple_options]))
-                constr_all.append(Or([states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist) for o in tuple_options]))
         s.add(constr_all)
         if probe: 
             constraints.extend(constr_all)
@@ -413,7 +409,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         print(t1 - t0)
 
         if jsonpath == None:
-            print(config)
+            print(json.dumps(config))
         else:
             with open(jsonpath, "w") as f:
                 json.dump(config, f)
