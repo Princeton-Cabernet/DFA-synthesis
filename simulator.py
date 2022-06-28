@@ -1,3 +1,4 @@
+import sys
 import json
 import argparse
 import warnings
@@ -186,8 +187,12 @@ def simulateRegAct(input, config, warning):
     if "states_2" in config :
         states_2 = access(config["states_2"])
         states_2 = {string_to_pair(k) : v for k, v in states_2.items()}
-        states_1_is_main = {string_to_pair(k) : v for k, v in config["states_1_is_main"].items()}
-        back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
+        if "states_1_is_main" in config:
+            states_1_is_main = {string_to_pair(k) : v for k, v in config["states_1_is_main"].items()}
+            back_to_state = {(states_1[k] if v else states_2[k]) : k[0] for k, v in states_1_is_main.items()}
+        else:
+            states_1_is_main = None
+            back_to_state = {v : k[0] for k, v in states_1.items()}
         states_2 = {state : [v for k, v in states_2.items() if state == k[0]] for state in input["states"]}
     else:
         states_2 = None
@@ -230,8 +235,11 @@ def main():
     parser.add_argument('--warning', action='store_true')
     args=parser.parse_args()
 
-    input=json.load(open(args.input))
-    config=json.load(open(args.config))
+    try:
+        input=json.load(open(args.input))
+        config=json.load(open(args.config))
+    except:
+        sys.exit(-1)
     simulateRegAct(input, config, args.warning)
 
 if __name__ == '__main__':
