@@ -295,7 +295,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     expanded_states=set()
     split_nodes={}
     for dst in states:
-        print(out_edges[dst], len(in_symbols[dst]))
+        # print(out_edges[dst], len(in_symbols[dst]))
         if is_split(dst):
             sys.stderr.write(f'notice: state {dst} is split into {num_split_nodes} nodes.\n')
             split_nodes[dst]=[(dst, i) for i in range(num_split_nodes)]
@@ -425,7 +425,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     else:
         t1 = time.time()
         sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
-
+        sys.stderr.write(str(t1 - t0))
         print(False)
         print(None)
         print(t1 - t0)
