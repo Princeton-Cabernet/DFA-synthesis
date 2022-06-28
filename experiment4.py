@@ -1,15 +1,15 @@
 import itertools
 
 if __name__ == '__main__':
-    files = ["zoom_simple.json", "mobiledevice.json", "tcp_open.json", "simple.json"] \
-            + ["fingerprint_%s.json" % suf for suf in ["16x1", "8x3", "12x4"] ]
+    files = ["zoom_simple.json", "mobiledevice.json", "tcp_open.json", "simple.json", "p2.json", "p3.json", "p4.json"] \
+            + ["fingerprint_%s.json" % suf for suf in ["16x1"]]
 
-    params = {"TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
-                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1},
-              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
+    params = { "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}}
+#              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
+#                                "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 1800, "probe": False, "num_split_nodes": 1}}
 
-    directory = "/media/data/mengying/P4DFA/arith_plot_1"
+    directory = "/media/disk2/mengying/P4DFA/arith_plot_2"
 
     num_arith_list = [1, 3, 4, 6, 13]
     for param_name, file, num_arith in itertools.product(params.keys(), files, num_arith_list):
