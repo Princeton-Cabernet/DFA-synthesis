@@ -22,10 +22,12 @@ if __name__ == '__main__':
     files =  ["zoom_simple.json"]
     params = ["SingleRegAct","FourRegAct","TwoCond","TwoSlot","FourBranch","TwoCondSplitNode","TwoSlotSplitNode","FourBranchSplitNode"]
     params = ["SingleRegAct","FourRegAct","TwoCond","TwoSlot", "FourBranch"]
-    
-    directory = "/media/data/mengying/P4DFA/eval_gendfa_stable"
 
-    print('input\t'+'\t '.join(params))
-    for f in files:
-        line=[readlog(f"{directory}/result_{p}_{f}.log") for p in params]
-        print(f+'\t'+'\t'.join(line))
+    for trial in range(6, 11):
+        directory = f"/media/data/mengying/P4DFA/eval_correct_{trial}"
+        print('input\t'+'\t '.join(params))
+        for f in files:
+            line=[readlog(f"{directory}/result_{p}_{f}.log") for p in params]
+            print(f+'\t'+'\t'.join(line))
+        print()
+        print()

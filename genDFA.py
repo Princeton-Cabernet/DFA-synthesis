@@ -1,4 +1,5 @@
 from z3 import *
+import sys
 import json
 import time
 import math
@@ -118,8 +119,8 @@ class Pred:
 
     def makeDFACond(self):
         constraints = []
-        if not self.arith_bin:
-            constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
+        # if not self.arith_bin:
+        #     constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
         return constraints
 
     def makePredCond(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
@@ -186,13 +187,14 @@ class Arith:
 
 
 class RegAct:
-    def __init__(self, regact_id, arith_bin, num_arith, two_cond, two_slot, four_branch, bitvecsize):
+    def __init__(self, regact_id, arith_bin, num_arith, two_cond, two_slot, four_branch, main_fixed, bitvecsize):
         self.regact_id = regact_id
         self.arith_bin = arith_bin
         self.num_arith = num_arith
         self.two_cond = two_cond
         self.two_slot = two_slot
         self.four_branch = four_branch
+        self.main_fixed = main_fixed
         self.bitvecsize = bitvecsize
         self.num_pred = 2 if two_cond else 1
         self.num_arith = 4 if two_slot else 2
@@ -210,7 +212,7 @@ class RegAct:
             constraints.extend(p.makeDFACond())
         for a in self.ariths:
             constraints.extend(a.makeDFACond())
-        if not self.two_slot:
+        if not self.two_slot or self.main_fixed:
             constraints.append(self.state_1_is_main)
         return constraints
 
@@ -243,7 +245,7 @@ class RegAct:
                    "state_1_is_main" : bool(model[self.state_1_is_main]) }
         return config
 
-def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, regacts, two_slot, bitvecsize):
+def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_is_main, regacts, two_slot, main_fixed, bitvecsize):
     config = {}
     config["bitvecsize"] = bitvecsize
     config["symbols_1"] = { sym : access_int(model, val) for sym, val in symbols_1.items() }
@@ -252,7 +254,8 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, states_1_
     config["states_1"] = { pair_to_string(state) : access_int(model, val) for state, val in states_1.items() }
     if two_slot:
         config["states_2"] = { pair_to_string(state) : access_int(model, val) for state, val in states_2.items() }
-        config["states_1_is_main"] = { pair_to_string(state) : bool(model[val]) for state, val in states_1_is_main.items() }
+        if not main_fixed:
+            config["states_1_is_main"] = { pair_to_string(state) : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
@@ -277,7 +280,7 @@ def orderByState(transitions):
 def pair_to_string(state_pair):
     return "%s_%d" % state_pair
 
-def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes, jsonpath=None):
+def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes, main_fixed, jsonpath=None):
     t0 = time.time()
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
 
@@ -310,7 +313,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
     constraints = []
 
     # per RegAct
-    regacts = [RegAct(i, arith_bin, num_arith, two_cond, two_slot, four_branch, bitvecsize) for i in range(num_regact)]
+    regacts = [RegAct(i, arith_bin, num_arith, two_cond, two_slot, four_branch, main_fixed, bitvecsize) for i in range(num_regact)]
     for regact in regacts:
         constraints.extend(regact.makeDFACond())
 
@@ -334,12 +337,13 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         states_1[state] = BitVec("state_1_%s" % pair_to_string(state), bitvecsize)
         if two_slot:
             states_2[state] = BitVec("state_2_%s" % pair_to_string(state), bitvecsize)
-            states_1_is_main[state] = Bool('state_1_is_main_%s' % pair_to_string(state))
+            if not main_fixed:
+                states_1_is_main[state] = Bool('state_1_is_main_%s' % pair_to_string(state))
 
     for s1, s2 in itertools.combinations(states_1.keys(), 2):
         if s1 != s2: 
-            main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1]) if two_slot else states_1[s1]
-            main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2]) if two_slot else states_1[s2]
+            main_state_1 = If(states_1_is_main[s1], states_1[s1], states_2[s1]) if (two_slot and not main_fixed) else states_1[s1]
+            main_state_2 = If(states_1_is_main[s2], states_1[s2], states_2[s2]) if (two_slot and not main_fixed) else states_1[s2]
             if s1[0] != s2[0]:
                 constraints.append(main_state_1 != main_state_2)
 
@@ -376,9 +380,13 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
                 s1exp = If(logic_vars[0], arith_vars[0], arith_vars[1])
             s1explist.append(s1exp)
         if two_slot:
-            constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
-                states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist), \
-                states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist)) for o in tuple_options]))
+            if not main_fixed:
+                constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
+                    states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist), \
+                    states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist)) for o in tuple_options]))
+            else:
+                constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
+                    states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist)) for o in tuple_options]))
         else:
             constr_all.append(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
         s.add(constr_all)
@@ -403,7 +411,7 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         model = s.model()
         safety_check = s.model().eval(And(s.assertions()))
         config = toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2,
-                        states_1_is_main, regacts, two_slot, bitvecsize)
+                        states_1_is_main, regacts, two_slot, main_fixed, bitvecsize)
         print(True)
         print(safety_check)
         print(t1 - t0)
@@ -421,9 +429,9 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         print(False)
         print(None)
         print(t1 - t0)
-        print(None)
 
-        return False, None, (t1 - t0), None
+        # return False, None, (t1 - t0), None
+        sys.exit(-1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Create DFA configurations.')
@@ -439,14 +447,15 @@ if __name__ == '__main__':
     parser.add_argument('--probe', action='store_true')
     parser.add_argument('--num_split_nodes', type=int, default = 1)
     parser.add_argument('--jsonpath', type=str, default=None)
+    parser.add_argument('--main_fixed', action='store_true')
     args=parser.parse_args()
 
     # assertion when four_branch == True: two_slot == True, two_cond == True
     assert((args.two_slot and args.two_cond) if args.four_branch else True)
 
     input_json=json.load(open(args.input))
-    createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, 
-              args.num_regact, args.bitvecsize, args.timeout, args.probe, args.num_split_nodes, args.jsonpath)
+    createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, args.num_regact,
+             args.bitvecsize, args.timeout, args.probe, args.num_split_nodes, args.main_fixed, args.jsonpath)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
