@@ -335,6 +335,8 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
 
     for state in expanded_states:
         states_1[state] = BitVec("state_1_%s" % pair_to_string(state), bitvecsize)
+        if state[0] == input["initial"]:
+            constraints.append(states_1[state] == BitVecVal(0, bitvecsize))
         if two_slot:
             states_2[state] = BitVec("state_2_%s" % pair_to_string(state), bitvecsize)
             if not main_fixed:

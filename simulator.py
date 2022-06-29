@@ -201,6 +201,8 @@ def simulateRegAct(input, config, warning):
 
     states_1 = {state : [v for k, v in states_1.items() if state == k[0]] for state in input["states"]}
 
+    for r in config["regacts"]:
+        if "state_1_is_main" not in r: r["state_1_is_main"] = True
     regacts = [RegAct(warning=warning, **r) for r in config["regacts"]]
     for transition in input["transitions"]:
         for pre_state_1 in states_1[transition[0]]:
@@ -218,9 +220,15 @@ def simulateRegAct(input, config, warning):
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
                 except:
                     traceback.print_exc()
+                    sys.stderr.write("No state")
+                    sys.stderr.write(transition)
+                    sys.stderr.write(got_state_1, got_state_2)
                     print(False)
                     return False
                 if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
+                    sys.stderr.write("Wrong state")
+                    sys.stderr.write(transition)
+                    sys.stderr.write(got_state_1, got_state_2)
                     print(False)
                     return False
 

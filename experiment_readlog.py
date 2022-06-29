@@ -23,10 +23,10 @@ if __name__ == '__main__':
 #            + ["fingerprint_%s.json" % suf for suf in ["16x1", "8x3", "10x3", "12x3", "8x4", "10x4", "12x4"] ] \
 #            + ["s%d.json" % i for i in range(2,5)] + ["p%d.json" % i for i in range(2,5)]
 
-    files =  ["zoom_simple.json", "simple.json"]
+    files =  ["zoom_simple.json", "tcp_open.json"]
     params = ["Assignment","Arithmetic","TwoCond","TwoSlot","FourBranch"]
 
-    for trial in range(6, 7):
+    for trial in range(11,12):
         directory = f"/media/data/mengying/P4DFA/eval_correct_{trial}"
         print('input\t'+'\t '.join(params))
         for f in files:
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         print()
         print()
 
-    for trial in range(6, 7):
+    for trial in range(11, 12):
         directory = f"/media/data/mengying/P4DFA/eval_correct_{trial}"
         for f in files:
             print("======================" + f + "======================")

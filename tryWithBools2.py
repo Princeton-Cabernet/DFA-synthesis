@@ -299,7 +299,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             if(num_regact == 4):
                 s.add(post_state_tuple[0] == If(regact_id[(sym, 0)], If(regact_id[(sym, 1)], reg_cons_this_trans[3][1], reg_cons_this_trans[2][1]), If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])))
                 if two_slot:
-                    s.add(post_state_tuple[1] == If(regact_id[(sym, 0)], If(regact_id[(sym, 1)], reg_cons_this_trans[3][2], reg_cons_this_trans[2][2]), If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][2])))
+                    s.add(post_state_tuple[1] == If(regact_id[(sym, 0)], If(regact_id[(sym, 1)], reg_cons_this_trans[3][2], reg_cons_this_trans[2][2]), If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2])))
             elif(num_regact == 3):
                 s.add(post_state_tuple[0] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])))
                 if two_slot:
