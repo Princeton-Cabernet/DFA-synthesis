@@ -239,15 +239,15 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, 
     else:
         regdict = {sym : 0 for sym in symbols_1.keys()}
     config["regact_id"] = regdict
-    config["states_1"] = { pair_to_string(state) : access_int(model, val) for state, val in states_1.items() }
+    config["states_1"] = { pair_to_string(state, has_suffix_for_0=True) : access_int(model, val) for state, val in states_1.items() }
     if two_slot:
-       config["states_2"] = { pair_to_string(state) : access_int(model, val) for state, val in states_2.items() }
+       config["states_2"] = { pair_to_string(state, has_suffix_for_0=True) : access_int(model, val) for state, val in states_2.items() }
     #   config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
-def pair_to_string(state_pair):
-    if state_pair[1]==0: return state_pair[0]
+def pair_to_string(state_pair, has_suffix_for_0=False):
+    if state_pair[1]==0 and has_suffix_for_0==False: return state_pair[0]
     return "%s_%d" % state_pair
 
 import collections
