@@ -210,8 +210,6 @@ def simulateRegAct(input, config, warning):
         else:
             it=zip(states_1[transition[0]], states_2[transition[0]])
         for (pre_state_1,pre_state_2) in it:
-        #for pre_state_1 in states_1[transition[0]]:
-            #for pre_state_2 in (states_2[transition[0]] if states_2 != None else [None]):
                 symbol_1 = symbols_1[transition[1]]
                 symbol_2 = symbols_2[transition[1]]
                 post_state_1 = states_1[transition[2]]

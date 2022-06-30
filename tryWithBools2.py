@@ -31,20 +31,32 @@ def make_string_name_for_enum_bools(model, list_of_pairs):
 
 def print_string_name_ordered_from_0(list_of_bool_names, list_of_string_names, model):
     try:
-        fst = model.eval(list_of_bool_names[0])
+        fst = bool(model[list_of_bool_names[0]])
         num_opts = len(list_of_string_names)
-        if num_opts == 3 and fst:
-            idx = 2
-        elif num_opts > 2:
-            snd = model.eval(list_of_bool_names[1])
-            if(fst):
-                idx = 3 if snd else 2
-            else:
-                idx = 1 if snd else 0
+        if num_opts == 6:
+            idx = 0
+            if bool(model[list_of_bool_names[0]]) and bool(model[list_of_bool_names[1]]): idx = 0
+            elif bool(model[list_of_bool_names[0]]) and not bool(model[list_of_bool_names[1]]): idx = 1
+            elif not bool(model[list_of_bool_names[0]]) and bool(model[list_of_bool_names[1]]) and bool(model[list_of_bool_names[2]]): idx = 2
+            elif not bool(model[list_of_bool_names[0]]) and bool(model[list_of_bool_names[1]]) and not bool(model[list_of_bool_names[2]]): idx = 3
+            elif not bool(model[list_of_bool_names[0]]) and not bool(model[list_of_bool_names[1]]) and bool(model[list_of_bool_names[2]]): idx = 4
+            elif not bool(model[list_of_bool_names[0]]) and not bool(model[list_of_bool_names[1]]) and not bool(model[list_of_bool_names[2]]): idx = 5
+            return list_of_string_names[idx]
         else:
-            idx = 1 if fst else 0
-        return list_of_string_names[min(len(list_of_string_names) - 1, idx)]
+            if num_opts == 3 and fst:
+                idx = 2
+            elif num_opts > 2:
+                snd = bool(model[list_of_bool_names[1]])
+                if(fst):
+                    idx = 3 if snd else 2
+                else:
+                    idx = 1 if snd else 0
+            else:
+                idx = 1 if fst else 0
+            return list_of_string_names[min(len(list_of_string_names) - 1, idx)]
     except:
+        import traceback
+        traceback.print_exc()
         return "unknown"
 
 
@@ -104,8 +116,8 @@ class Pred:
         return pred_val
 
     def toJSON(self, model):
-        config = { "op": print_string_name_ordered_from_0([self.op_0, self.op_1], ["!=", "<=", ">=", "=="], model),
-                   "const": access(model, self.const),
+        config = { "op": print_string_name_ordered_from_0([self.op_0, self.op_1], ["neq", "le", "ge", "eq"], model),
+                   "const": access_int(model, self.const),
                    "sym_opt": print_string_name_ordered_from_0([self.sym_opt_const, self.sym_opt_which_sym], ["s2", "s1", "const"], model),
                    "state_opt":  print_string_name_ordered_from_0([self.state_opt_const, self.state_opt_which_state] if self.two_slot else [self.state_opt_const], ["s2", "s1", "const"] if self.two_slot else ["s1", "const"], model)}
         return config
@@ -152,11 +164,11 @@ class Arith:
         return arith_val
 
     def toJSON(self, model):
-        config = { "op": print_string_name_ordered_from_0([self.op_1, self.op_2], ["|", "^", "&", "+"], model),
-                   "sym_const": access(model, self.sym_const),
+        config = { "op": print_string_name_ordered_from_0([self.op_1, self.op_2, self.op_3], ["plus", "and", "xor", "or", "subr", "sub"], model),
+                   "sym_const": access_int(model, self.sym_const),
                    "sym_opt": print_string_name_ordered_from_0([self.sym_opt_const, self.sym_opt_which_sym], ["s2", "s1", "const"], model),
                    "state_opt":  print_string_name_ordered_from_0([self.state_opt_const, self.state_opt_which_state] if self.two_slot else [self.state_opt_const], ["s2", "s1", "const"] if self.two_slot else ["s1", "const"], model), 
-                   "state_const": access(model, self.state_const) }
+                   "state_const": access_int(model, self.state_const) }
         return config
 
 class RegAct:
@@ -169,7 +181,7 @@ class RegAct:
         self.bitvecsize = bitvecsize
         self.num_pred = 2 if two_cond else 1
         self.num_arith = 4 if two_slot else 2
-        self.num_logical_op = 2 if four_branch else 1
+        #self.num_logical_op = 2 if four_branch else 1
         self.preds = [Pred(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_pred)]
         self.ariths = [Arith(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_arith)]
         #self.logic_ops = [Const("logic_op_%d_%d" % (regact_id, i), LogicOp) for i in range(self.num_logical_op)]
@@ -218,32 +230,44 @@ class RegAct:
             return [constraints, If(pred_val, avals[0], avals[1])]
 
     def toJSON(self, model):
-        logic_op_string = ""
-        
-        config = { "logic_ops" : print_string_name_ordered_from_0([self.logic_op_left, self.logic_op_and], ["or", "and", "left"], model) if self.two_cond else "left", 
+        if self.two_cond:
+            logic_ops = [print_string_name_ordered_from_0([self.logic_op_left, self.logic_op_and], ["or", "and", "left"], model)]
+            if self.four_branch:
+                logic_ops = [print_string_name_ordered_from_0([self.logic_op_left, self.logic_op_and], ["or", "and", "right", "left"], model),
+                             print_string_name_ordered_from_0([self.logic_op_left_B, self.logic_op_and_B], ["or", "and", "right", "left"], model),] 
+        else:
+             logic_ops = ["left"]
+        config = { "logic_ops" : logic_ops, 
                    "preds" : [p.toJSON(model) for p in self.preds], 
                    "ariths" : [a.toJSON(model) for a in self.ariths]}
         return config
 
+def pair_to_string(state_pair, has_suffix_for_0=False):
+    if state_pair[1]==0 and has_suffix_for_0==False: return state_pair[0]
+    return "%s_%d" % state_pair
+
+def access_int(model, val):
+    return model[val].as_long() if (model[val] != None) else None
+
 def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, two_slot, bitvecsize, num_regacts):
     config = {}
     config["bitvecsize"] = bitvecsize
-    config["symbols_1"] = { sym : access(model, val) for sym, val in symbols_1.items() }
-    config["symbols_2"] = { sym : access(model, val) for sym, val in symbols_2.items() }
+    config["symbols_1"] = { sym : access_int(model, val) for sym, val in symbols_1.items() }
+    config["symbols_2"] = { sym : access_int(model, val) for sym, val in symbols_2.items() }
     numregbool = 2 if num_regacts > 2 else 1
     if(num_regacts > 1):
-        regdict = {sym : print_string_name_ordered_from_0([regact_id[(sym, reg)] for reg in range(numregbool)], [i for i in range(num_regacts)], model) for sym in symbols_1.keys()}
+        regdict = {sym : int(print_string_name_ordered_from_0([regact_id[(sym, reg)] for reg in range(numregbool)], [i for i in range(num_regacts)], model)) for sym in symbols_1.keys()}
     else:
         regdict = {sym : 0 for sym in symbols_1.keys()}
     config["regact_id"] = regdict
-    config["states_1"] = { state : access(model, val) for state, val in states_1.items() }
+    config["states_1"] = { pair_to_string((state, 0), has_suffix_for_0=True) : access_int(model, val) for state, val in states_1.items() }
     if two_slot:
-       config["states_2"] = { state : access(model, val) for state, val in states_2.items() }
+       config["states_2"] = { pair_to_string((state, 0), has_suffix_for_0=True) : access_int(model, val) for state, val in states_2.items() }
     #   config["states_1_is_main"] = { state : bool(model[val]) for state, val in states_1_is_main.items() }
     config["regacts"] = [r.toJSON(model) for r in regacts]
     return config
 
-def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize):
+def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, jsonpath=None):
     t0 = time.time()
     # constraints
     constraints = []
@@ -286,7 +310,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
 
     constraints.append(states_1[input["initial"]] == BitVecVal(0, bitvecsize))
     s = Then('simplify', 'solve-eqs', 'bit-blast', 'qffd', 'sat').solver() 
-    s.set("timeout", 1800 * 1000)
+    s.set("timeout", timeout * 1000)
     s.add(And(constraints))
     for sym in input["sigma"]:
         this_sym_transitions = []
@@ -331,7 +355,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         #else:
         #    print("unsat")
         #    sys.exit()
-    print(s.assertions())
+    # print(s.assertions())
     if s.check() == sat:
         t1 = time.time()
         sys.stderr.write("Sat with %d regacts." % num_regact)
@@ -341,13 +365,20 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         print(True)
         print(safety_check)
         print(t1-t0)
+
+        if jsonpath == None:
+            print(json.dumps(config))
+        else:
+            with open(jsonpath, "w") as f:
+                json.dump(config, f)
         # print(config)
 
         return True, safety_check, (t1 - t0), config
         #print(model)
     else:
         t1 = time.time()
-        sys.stderr.write("unsat")
+        sys.stderr.write("Unsat with %d regacts.\n" % num_regact)
+        sys.stderr.write(str(t1 - t0))
 
         print(False)
         print(None)
@@ -390,12 +421,14 @@ if __name__ == '__main__':
     parser.add_argument('--four_branch', action='store_true')
     parser.add_argument('--num_regact', type=int, default=1)
     parser.add_argument('--bitvecsize', type=int, default=8)
+    parser.add_argument('--timeout', type=int, default=1800)
+    parser.add_argument('--jsonpath', type=str, default=None)
     args=parser.parse_args()
     # assertion when four_branch == True: two_slot == True, two_cond == True
     assert(args.two_slot and args.two_cond if args.four_branch else True)
 
     input_json=json.load(open(args.input))
-    createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, args.num_regact, args.bitvecsize)
+    createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, args.num_regact, args.bitvecsize, args.timeout, args.jsonpath)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
