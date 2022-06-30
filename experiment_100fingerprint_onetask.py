@@ -82,5 +82,5 @@ fi
 			cli='tsp bash -c "' + cli + '"'
 		else:
 			cli="time "+cli
-		print(f"echo trial={trial} I={I}, {param_name} {file}")
+		print(f"echo trial={trial} i={i}, {param_name} {file}")
 		print(cli)
