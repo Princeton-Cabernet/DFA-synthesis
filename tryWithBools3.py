@@ -343,7 +343,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         tuple_options = range(num_split_nodes) if is_split(dst_state) else [0]
         reg_cons_this_trans = []
         for reg in range(num_regact):
-            name = "%s_%s_%s" % (pair_to_string(src_state_split), symbol, dst_state)
+            name = "%s%s%s" % (pair_to_string(src_state_split), symbol, dst_state)
             reg_cons_this_trans.append(regacts[reg].makeTransitionCond(pre_state_tuple, symbol_1, symbol_2, name))
 
         def ReduceOr(cons_list_of_and):
