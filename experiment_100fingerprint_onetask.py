@@ -42,24 +42,25 @@ parser.add_argument('--trials', type=int, default=1,
 
 args=parser.parse_args()
 
-
-print('#!/bin/bash')
-print('# Please cd to P4DFA/ before running this script. This is a bash comment header.')
+if not args.tsp:
+	print('#!/bin/bash')
+	print('# Please cd to P4DFA/ before running this script. This is a bash comment header.')
 for trial in range(args.trials):
 	DIR=f"{args.output_dir}/{args.PARAM}_{args.MAIN_PROGRAM}_{args.CLEN}_trial{trial}/"
 	if os.path.exists(DIR):
 		sys.stderr.write(f"ERROR: Output folder already exists. \n {DIR}  \n\n There is risk of overwriting existing experiment data. Please move the existing data away or delete them manually.\n")
 		sys.exit(-1)
 
-	print(f"""
+	if not args.tsp: 
+		print(f"""
 if [ -d "{DIR}" ]; then
     echo ERROR: Output folder already exists. {DIR}
     echo There is risk of overwriting existing experiment data. Please move the existing data away or delete them manually.
     echo Stopping this run.
     exit 1
 fi
-	""")
-	print(f'mkdir -p {DIR}')
+		mkdir -p {DIR}
+		""")
 
 	for i in range(args.N):
 		param=params[args.PARAM]
@@ -82,5 +83,5 @@ fi
 			cli='tsp bash -c "' + cli + '"'
 		else:
 			cli="time "+cli
-		print(f"echo trial={trial} i={i}, {param_name} {file}")
+		if not args.tsp: print(f"echo trial={trial} i={i}, {param_name} {file}")
 		print(cli)
