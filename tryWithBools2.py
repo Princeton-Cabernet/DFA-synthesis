@@ -135,6 +135,10 @@ class Arith:
     #returns list of top level constraints
     def makeDFACond(self):
         constraints = []
+        if not self.arith_bin:
+            constraints.append(And(Or(And(self.sym_opt_const, self.sym_const == 0), 
+                                      And(self.state_opt_const, self.state_const == 0)),
+                               And(self.op_1, self.op_2)))
         return constraints
 
     def makeArithCond(self, pre_state_tuple, symbol_1, symbol_2, names):
