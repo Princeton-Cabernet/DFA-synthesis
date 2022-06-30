@@ -23,7 +23,7 @@ params = {
 
 parser = argparse.ArgumentParser(description='Generate running script for one experiment, given a particular input FP length.')
 parser.add_argument('CLEN',type=str,
-		choices=[f'{i}x{l}' for i in (1,2) for l in range(2,25,2)],
+		choices=[f'{i}x{l}' for i in (1,2) for l in range(2,25,2)]+[f'{i}x{l}' for i in (3,4) for l in range(2,17,2)],
 		help="The Fingerprint DFA input length and composition, e.g., '3x10'.")
 parser.add_argument('PARAM',type=str,
 		choices=params.keys(),
