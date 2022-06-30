@@ -3,18 +3,23 @@ import argparse
 import sys
 import os
 
-params = {"Assignment" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
+params = {"Assignment" : {"two_cond": False, "two_slot": False, "four_branch": False, #"num_regact": 3,
                                 "arith_bin": False, "num_arith": 6, "bitvecsize": 8, "timeout": 3600, "probe": False, "main_fixed": True},
-              "Arithmetic" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 4,
+              "Arithmetic" : {"two_cond": False, "two_slot": False, "four_branch": False, "num_regact": 3,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 3600, "probe": False, "main_fixed": True},
-              "TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, "num_regact": 4,
+              "TwoCond" : {"two_cond": True, "two_slot": False, "four_branch": False, #"num_regact": 3,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 3600, "probe": False, "main_fixed": True}, 
-              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, "num_regact": 4,
+              "TwoSlot" : {"two_cond": True, "two_slot": True, "four_branch": False, #"num_regact": 3,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 3600, "probe": False, "main_fixed": True},
-              "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, "num_regact": 4,
+              "FourBranch" : {"two_cond": True, "two_slot": True, "four_branch": True, #"num_regact": 3,
                                 "arith_bin": True, "num_arith": 6, "bitvecsize": 8, "timeout": 3600, "probe": False, "main_fixed": True}}
        # "num_split_nodes": 1
        # removed from config, since 1 is default for some but unsupported by others
+params = {
+	f"{k}{nra}" : ( dict(v, num_regact=nra) ) 
+	for nra in (2,3,4)
+	for k,v in params.items()
+}
 
 parser = argparse.ArgumentParser(description='Generate running script for one experiment, given a particular input FP length.')
 parser.add_argument('CLEN',type=str,
