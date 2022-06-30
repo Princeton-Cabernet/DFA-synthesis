@@ -193,13 +193,13 @@ def simulateRegAct(input, config, warning):
         else:
             states_1_is_main = None
             back_to_state = {v : k[0] for k, v in states_1.items()}
-        states_2 = {state : [v for k, v in states_2.items() if state == k[0]] for state in input["states"]}
+        states_2 = {state : [v for k, v in sorted(states_2.items(), key=lambda kv:kv[0][1]) if state == k[0]] for state in input["states"]}
     else:
         states_2 = None
         states_1_is_main = None
         back_to_state = {v : k[0] for k, v in states_1.items()}
 
-    states_1 = {state : [v for k, v in states_1.items() if state == k[0]] for state in input["states"]}
+    states_1 = {state : [v for k, v in sorted(states_1.items(), key=lambda kv:kv[0][1]) if state == k[0]] for state in input["states"]}
 
     for r in config["regacts"]:
         if "state_1_is_main" not in r: r["state_1_is_main"] = True
@@ -215,7 +215,6 @@ def simulateRegAct(input, config, warning):
                 post_state_2 = states_2[transition[2]] if states_2 != None else [None]
 
                 got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
-
                 try:
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
                 except:
