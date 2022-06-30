@@ -169,13 +169,17 @@ class RegAct:
         self.bitvecsize = bitvecsize
         self.num_pred = 2 if two_cond else 1
         self.num_arith = 4 if two_slot else 2
-        #self.num_logical_op = 2 if four_branch else 1
+        self.num_logical_op = 2 if four_branch else 1
         self.preds = [Pred(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_pred)]
         self.ariths = [Arith(regact_id, i, arith_bin, two_slot, bitvecsize) for i in range(self.num_arith)]
         #self.logic_ops = [Const("logic_op_%d_%d" % (regact_id, i), LogicOp) for i in range(self.num_logical_op)]
         if(two_cond):
             self.logic_op_left = Bool("logic_op_left_%d" % regact_id)
             self.logic_op_and = Bool("logic_op_and_%d" % regact_id)
+            if four_branch:
+                self.logic_op_left_B = Bool("logic_op_left_b_%d" % regact_id)
+                self.logic_op_and_B = Bool("logic_op_and_b_%d" % regact_id)
+        
         #self.logic_op_or = Bool("logic_op_or_%d" % regact_id)           //OR is both above false
         #self.state_1_is_main = Bool("state_1_is_main_%d" % regact_id)
     
@@ -196,6 +200,9 @@ class RegAct:
             pred2 = Bool("trans_top_pred_val_right_{0}{1}{2}{3}".format(self.regact_id, names[0], names[1], names[2]))
             constraints.append(pred2 == pred_conds[1])
             pred_val = If(self.logic_op_left, pred1, If(self.logic_op_and, And(pred1, pred2), Or(pred1, pred2)))
+            if self.four_branch:
+                pred_val = If(self.logic_op_left, If(self.logic_op_and, pred1, pred2), If(self.logic_op_and, And(pred1, pred2), Or(pred1, pred2)))
+                pred_val_B = If(self.logic_op_left_B, If(self.logic_op_and_B, pred1, pred2), If(self.logic_op_and_B, And(pred1, pred2), Or(pred1, pred2)))
         else:
             pred_val = pred1
         avals = [] 
@@ -204,6 +211,8 @@ class RegAct:
             avals.append(aval)
             constraints.append(aval == arith.makeArithCond(pre_state_tuple, symbol_1, symbol_2, names))
         if (self.two_slot):
+            if self.four_branch:
+                return [constraints, If(pred_val, avals[0], avals[2]), If(pred_val_B, avals[1], avals[3])]
             return [constraints, If(pred_val, avals[0], avals[2]), If(pred_val, avals[1], avals[3])]
         else:
             return [constraints, If(pred_val, avals[0], avals[1])]
