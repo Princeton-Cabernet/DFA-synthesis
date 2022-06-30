@@ -319,10 +319,6 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             states_2[state] = BitVec("state_2_%s" % pair_to_string(state), bitvecsize)
 
     for s1, s2 in itertools.combinations(states_1.keys(), 2):
-        if s1 != s2:
-            constraints.append(states_1[s1] != states_1[s2])
-
-    for s1, s2 in itertools.combinations(states_1.keys(), 2):
         if s1 != s2: 
             main_state_1 = states_1[s1]
             main_state_2 = states_1[s2]
