@@ -348,38 +348,43 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             name = "%s_%d_%s_%s" % (src_state_split[0], src_state_split[1], symbol, dst_state)
             reg_cons_this_trans.append(regacts[reg].makeTransitionCond(pre_state_tuple, symbol_1, symbol_2, name))
 
+        def ReduceOr(cons_list):
+            if len(cons_list)==1:
+                return cons_list[0]
+            return Or(cons_list)
+
         if(num_regact == 4):
             if two_slot:
-                s.add( Or([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
+                s.add( ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][1], reg_cons_this_trans[2][1]), 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])),
                         states_2[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][2], reg_cons_this_trans[2][2]), 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))) for o in tuple_options]) )
             else:
-                s.add( Or([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
+                s.add( ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][1], reg_cons_this_trans[2][1]), 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])) for o in tuple_options]) )
         elif(num_regact == 3):
             if two_slot:
-                s.add( Or([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
+                s.add( ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])),
                         states_2[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][2],
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))) for o in tuple_options]) )
             else:
-                s.add( Or([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
+                s.add( ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
                        If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])) for o in tuple_options]) )
         elif(num_regact == 2):
             if two_slot:
-                s.add(Or([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]),
+                s.add(ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]),
                               states_2[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2])) for o in tuple_options]))
             else:
-                s.add(Or([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]) for o in tuple_options]))
+                s.add(ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]) for o in tuple_options]))
         else:
             if two_slot:
-                s.add(Or([And(states_1[(dst_state, o)] == reg_cons_this_trans[0][1], states_2[(dst_state, o)] == reg_cons_this_trans[0][2]) for o in tuple_options]))
+                s.add(ReduceOr([And(states_1[(dst_state, o)] == reg_cons_this_trans[0][1], states_2[(dst_state, o)] == reg_cons_this_trans[0][2]) for o in tuple_options]))
             else:
-                s.add(Or([states_1[(dst_state, o)] == reg_cons_this_trans[0][1] for o in tuple_options]))
+                s.add(ReduceOr([states_1[(dst_state, o)] == reg_cons_this_trans[0][1] for o in tuple_options]))
         for reg_cons in reg_cons_this_trans:
             s.add(reg_cons[0]) 
 
