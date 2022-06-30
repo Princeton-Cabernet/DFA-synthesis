@@ -247,6 +247,7 @@ def toJSON(model, symbols_1, symbols_2, regact_id, states_1, states_2, regacts, 
     return config
 
 def pair_to_string(state_pair):
+    if state_pair[1]==0: return state_pair[0]
     return "%s_%d" % state_pair
 
 import collections
@@ -348,47 +349,56 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
             name = "%s_%d_%s_%s" % (src_state_split[0], src_state_split[1], symbol, dst_state)
             reg_cons_this_trans.append(regacts[reg].makeTransitionCond(pre_state_tuple, symbol_1, symbol_2, name))
 
-        def ReduceOr(cons_list):
-            if len(cons_list)==1:
-                return cons_list[0]
-            return Or(cons_list)
+        def ReduceOr(cons_list_of_and):
+            if len(cons_list_of_and)==1:
+                only_c=cons_list_of_and[0]
+                for c in only_c:
+                    s.add(c)
+            else:
+                or_c=[]
+                for tup in cons_list_of_and:
+                    if len(tup)==0:
+                        or_c.append(tup[0])
+                    else:
+                        or_c.append(And(tup))
+                s.add(Or(or_c))
 
         if(num_regact == 4):
             if two_slot:
-                s.add( ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][1], reg_cons_this_trans[2][1]), 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])),
                         states_2[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][2], reg_cons_this_trans[2][2]), 
-                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))) for o in tuple_options]) )
+                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))] for o in tuple_options]) 
             else:
-                s.add( ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[3][1], reg_cons_this_trans[2][1]), 
-                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])) for o in tuple_options]) )
+                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]))] for o in tuple_options]) 
         elif(num_regact == 3):
             if two_slot:
-                s.add( ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
                     If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])),
                         states_2[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][2],
-                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))) for o in tuple_options]) )
+                    If(regact_id[(sym, 1)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2]))] for o in tuple_options]) 
             else:
-                s.add( ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
-                       If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])) for o in tuple_options]) )
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[2][1], 
+                       If(regact_id[(sym, 1)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]))] for o in tuple_options]) 
         elif(num_regact == 2):
             if two_slot:
-                s.add(ReduceOr([And(states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]),
-                              states_2[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2])) for o in tuple_options]))
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]),
+                              states_2[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][2], reg_cons_this_trans[0][2])] for o in tuple_options])
             else:
-                s.add(ReduceOr([states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1]) for o in tuple_options]))
+                ReduceOr([[states_1[(dst_state, o)] == If(regact_id[(sym, 0)], reg_cons_this_trans[1][1], reg_cons_this_trans[0][1])] for o in tuple_options])
         else:
             if two_slot:
-                s.add(ReduceOr([And(states_1[(dst_state, o)] == reg_cons_this_trans[0][1], states_2[(dst_state, o)] == reg_cons_this_trans[0][2]) for o in tuple_options]))
+                ReduceOr([[states_1[(dst_state, o)] == reg_cons_this_trans[0][1], states_2[(dst_state, o)] == reg_cons_this_trans[0][2]] for o in tuple_options])
             else:
-                s.add(ReduceOr([states_1[(dst_state, o)] == reg_cons_this_trans[0][1] for o in tuple_options]))
+                ReduceOr([[states_1[(dst_state, o)] == reg_cons_this_trans[0][1]] for o in tuple_options])
         for reg_cons in reg_cons_this_trans:
             s.add(reg_cons[0]) 
 
-
+    print(s.assertions())
     if s.check() == sat:
         t1 = time.time()
         sys.stderr.write("Sat with %d regacts." % num_regact)

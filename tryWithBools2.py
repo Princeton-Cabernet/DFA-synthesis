@@ -318,7 +318,7 @@ def createDFA(input, arith_bin, two_cond, two_slot, four_branch, num_regact, bit
         #else:
         #    print("unsat")
         #    sys.exit()
-
+    print(s.assertions())
     if s.check() == sat:
         t1 = time.time()
         sys.stderr.write("Sat with %d regacts." % num_regact)
