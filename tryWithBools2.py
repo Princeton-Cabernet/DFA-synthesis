@@ -423,9 +423,15 @@ if __name__ == '__main__':
     parser.add_argument('--bitvecsize', type=int, default=8)
     parser.add_argument('--timeout', type=int, default=1800)
     parser.add_argument('--jsonpath', type=str, default=None)
+    
+    parser.add_argument('--num_arith', type=int, default=6)
+    parser.add_argument('--main_fixed', action='store_true')
+
     args=parser.parse_args()
     # assertion when four_branch == True: two_slot == True, two_cond == True
     assert(args.two_slot and args.two_cond if args.four_branch else True)
+    assert(args.num_arith==6) #not implemenetd
+    assert(args.main_fixed==True) #not implemenetd
 
     input_json=json.load(open(args.input))
     createDFA(input_json, args.arith_bin, args.two_cond, args.two_slot, args.four_branch, args.num_regact, args.bitvecsize, args.timeout, args.jsonpath)
