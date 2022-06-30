@@ -219,6 +219,8 @@ def simulateRegAct(input, config, warning):
                 regact = regacts[regact_choice]
                 post_state_2 = states_2[transition[2]] if states_2 != None else [None]
 
+                post_state_tuples = list(zip(post_state_1,post_state_2))
+
                 got_state_1, got_state_2, got_state_1_is_main = regact.execute(pre_state_1, pre_state_2, symbol_1, symbol_2)
                 try:
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
@@ -229,7 +231,7 @@ def simulateRegAct(input, config, warning):
                     sys.stderr.write(str(got_state_1)+"\n"+str(got_state_2)+"\n")
                     print(False)
                     return False
-                if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
+                if (got_state != transition[2]) or (got_state_1,got_state_2) not in post_state_tuples:
                     sys.stderr.write("Wrong state\n")
                     sys.stderr.write(str(transition)+"\n")
                     sys.stderr.write(str(got_state_1)+"\n"+str(got_state_2)+"\n")
