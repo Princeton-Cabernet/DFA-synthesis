@@ -220,15 +220,15 @@ def simulateRegAct(input, config, warning):
                     got_state = back_to_state[got_state_1 if got_state_1_is_main else got_state_2]
                 except:
                     traceback.print_exc()
-                    sys.stderr.write("No state")
-                    sys.stderr.write(transition)
-                    sys.stderr.write(got_state_1, got_state_2)
+                    sys.stderr.write("No state\n")
+                    sys.stderr.write(str(transition)+"\n")
+                    sys.stderr.write(str(got_state_1)+"\n"+str(got_state_2)+"\n")
                     print(False)
                     return False
                 if (got_state != transition[2]) or (got_state_1 not in post_state_1) or (got_state_2 not in post_state_2):
-                    sys.stderr.write("Wrong state")
-                    sys.stderr.write(transition)
-                    sys.stderr.write(got_state_1, got_state_2)
+                    sys.stderr.write("Wrong state\n")
+                    sys.stderr.write(str(transition)+"\n")
+                    sys.stderr.write(str(got_state_1)+"\n"+str(got_state_2)+"\n")
                     print(False)
                     return False
 
