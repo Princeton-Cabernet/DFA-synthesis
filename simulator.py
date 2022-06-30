@@ -205,8 +205,13 @@ def simulateRegAct(input, config, warning):
         if "state_1_is_main" not in r: r["state_1_is_main"] = True
     regacts = [RegAct(warning=warning, **r) for r in config["regacts"]]
     for transition in input["transitions"]:
-        for pre_state_1 in states_1[transition[0]]:
-            for pre_state_2 in (states_2[transition[0]] if states_2 != None else [None]):
+        if states_2 == None:
+            it=zip(states_1[transition[0]], [None]*len(states_1[transition[0]]))
+        else:
+            it=zip(states_1[transition[0]], states_2[transition[0]])
+        for (pre_state_1,pre_state_2) in it:
+        #for pre_state_1 in states_1[transition[0]]:
+            #for pre_state_2 in (states_2[transition[0]] if states_2 != None else [None]):
                 symbol_1 = symbols_1[transition[1]]
                 symbol_2 = symbols_2[transition[1]]
                 post_state_1 = states_1[transition[2]]
