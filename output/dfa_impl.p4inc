@@ -1,0 +1,6 @@
+#ERROR "This is an empty control block. It should be replaced by an auto-generated code block."
+
+    control dfa_Control(in ig_metadata_t ig_md, out bit<8> new_state){
+        apply {
+        }
+    }

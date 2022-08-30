@@ -510,7 +510,7 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
     
     print(f"""
     {struct_definitions}
-    control {namespace}_Control(in ig_metadata_t ig_md, out bit<{bitvecsize}> new_state){{
+    control {namespace}Control(in ig_metadata_t ig_md, out bit<{bitvecsize}> new_state){{
         {definitions}
         {table_1}
         {table_2}
