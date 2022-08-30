@@ -59,8 +59,8 @@ class Pred:
             op_str='<='
         elif self.op == "neq":
             op_str='!='
-
-        return f'({pred_state} + {pred_sym} + {pred_const} {op_str} 0)'
+        casted_pred_const=-int(pred_const)
+        return f'({pred_state} + {pred_sym} {op_str} {casted_pred_const})'
 
     def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
         if self.sym_opt == "s1":
