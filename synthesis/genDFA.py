@@ -118,7 +118,7 @@ class Pred:
         self.const = BitVec('pred_const_%d_%d' % (regact_id, pred_id), bitvecsize)
 
     def makeDFACond(self):
-        constraints = []
+        constraints = [self.const>=0, self.const<=7]
         # if not self.arith_bin:
         #     constraints.append(Or(self.sym_enum.get_path("const"), self.state_enum.get_path("const")))
         return constraints
@@ -157,7 +157,7 @@ class Arith:
         self.state_const = BitVec('arith_state_const_%d_%d'% (regact_id, arith_id), bitvecsize)
 
     def makeDFACond(self):
-        constraints = []
+        constraints = [self.sym_const>=0, self.sym_const<=7, self.state_const>=0, self.state_const<=7]
         if not self.arith_bin:
             constraints.append(And(Or(And(self.sym_enum.get_path("const"), self.sym_const == 0), 
                                       And(self.state_enum.get_path("const"), self.state_const == 0)),

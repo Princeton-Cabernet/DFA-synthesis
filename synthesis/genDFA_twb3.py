@@ -93,7 +93,7 @@ class Pred:
 
     #returns list of top level constraints
     def makeDFACond(self):
-        constraints = []
+        constraints = [self.const>=0, self.const<=7]
         #.append(one_is_true_constraints([self.op_ge, self.op_eq, self.op_neq]))
         #constraints.append(one_is_true_constraints([self.sym_opt_s1, self.sym_opt_s2, self.sym_opt_const]))
         #if self.two_slot:
@@ -147,7 +147,7 @@ class Arith:
     
     #returns list of top level constraints
     def makeDFACond(self):
-        constraints = []
+        constraints = [self.sym_const>=0, self.sym_const<=7, self.state_const>=0, self.state_const<=7]
         return constraints
 
     def makeArithCond(self, pre_state_tuple, symbol_1, symbol_2):
