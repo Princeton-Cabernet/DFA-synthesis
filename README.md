@@ -24,14 +24,15 @@ The DFA definition also includes an initial state and optionally a list of accep
 
 To solve for a data-plane mapping of a given DFA, please run `python3 synthesis/genDFA_twb2.py input_DFA.json --jsonpath output_model.json [options]`. Various options are used to add to the complexity of RegisterAction templates; more complex templates lead to better expressiveness but also a slower synthesis.
 
-To use the recommended template complexity level (`TwoBranch`, 3 RegisterActions) used in our paper's Evaluation section, please run:
+To use the recommended template complexity level (`TwoBranch`) used in our paper's Evaluation section, use `--two_cond --two_slot`. Please run:
 ```
-python3 synthesis/genDFA_twb2.py examples/mobiledevice.json \
+python3 synthesis/genDFA.py examples/mobiledevice.json \
     --jsonpath output_model_mobiledevice.json \
-    --two_cond --two_slot --arith_bin --num_arith=6 --bitvecsize=8 --num_regact=3 --main_fixed \
+    --two_cond --two_slot --arith_bin \
+    --num_arith=1 --bitvecsize=8 --num_regact=3 --main_fixed \
     --timeout=3600 
 ```
-The solution will be stored in an intermediate representation JSON format. 
+The solution (model) will be stored in the file `output_model_mobiledevice.json` using an intermediate representation JSON format. 
 
 The following command will check that the RegisterAction found in the solution indeed accurately corresponds to the state transition rules in the input DFA.
 ```
