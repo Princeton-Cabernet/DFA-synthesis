@@ -243,10 +243,10 @@ class RegAct:
 
     def to_p4_code(self, namespace, reg_name, regact_name):
         template=f'''
-        RegisterAction<paired_{bitvecsize}bit, _, bit<{bitvecsize}>>({reg_name}) {regact_name}= {{  
-            void apply(inout paired_{bitvecsize}bit value, out bit<{bitvecsize}> rv) {{          
+        RegisterAction<paired_{bitvecsize}int, _, int<{bitvecsize}>>({reg_name}) {regact_name}= {{  
+            void apply(inout paired_{bitvecsize}int value, out int<{bitvecsize}> rv) {{          
                 rv = 0;                                                    
-                paired_{bitvecsize}bit in_value;                                   
+                paired_{bitvecsize}int in_value;                                   
                 in_value = value;                 
                 
                 %PRED_DEFN%
@@ -410,20 +410,20 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
     struct_definitions=f"""
     #IFNDEF PAIRED_{bitvecsize}BIT
     #DEFINE PAIRED_{bitvecsize}BIT
-        struct paired_{bitvecsize}bit {{
-            bit<{bitvecsize}> lo;
-            bit<{bitvecsize}> hi;
+        struct paired_{bitvecsize}int {{
+            int<{bitvecsize}> lo;
+            int<{bitvecsize}> hi;
         }}
     #ENDIF
     """
 
     definitions=f"""
     bit<{bitvecsize}> {namespace}_SYMBOL;
-    bit<{bitvecsize}> {namespace}symbol_1;
-    bit<{bitvecsize}> {namespace}symbol_2;
+    int<{bitvecsize}> {namespace}symbol_1;
+    int<{bitvecsize}> {namespace}symbol_2;
     bit<{bitvecsize}> {namespace}rv;
 
-    Register<paired_{bitvecsize}bit,_>({reg_size}) {reg_name};
+    Register<paired_{bitvecsize}int,_>({reg_size}) {reg_name};
     bit<16> {namespace}reg_index=0;
     """
     for i,sym in enumerate(input['sigma']):
@@ -483,7 +483,7 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
         definitions+=RA.to_p4_code(namespace, reg_name, f'{namespace}regact_{i}')
         definitions+=f"""
         action {namespace}exec_regact_{i}(){{
-            {namespace}regact_{i}.execute({namespace}reg_index);
+            {namespace}rv = (bit<{bitvecsize}>) {namespace}regact_{i}.execute({namespace}reg_index);
         }}
         """
 
@@ -510,7 +510,7 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
     
     print(f"""
     {struct_definitions}
-    control {namespace}Control(in ig_metadata_t ig_md, out bit<{bitvecsize}> new_state){{
+    control {namespace}Control(in ig_metadata_t ig_md, out int<{bitvecsize}> new_state){{
         {definitions}
         {table_1}
         {table_2}
@@ -524,7 +524,7 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
             tb_run_regact.apply();
 
             //step 3: got the numerical representation of the new state, map it back
-            new_state={namespace}rv;
+            new_state=(int<{bitvecsize}>) {namespace}rv;
             tb_map_rv_to_state.apply();
         }}
     }}

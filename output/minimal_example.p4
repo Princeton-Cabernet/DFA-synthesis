@@ -68,7 +68,7 @@ control SwitchIngress(
         apply {
             reflect();
 
-            bit<8> new_state;
+            int<8> new_state;
             my_dfa.apply(ig_md, new_state);
         }
 }
