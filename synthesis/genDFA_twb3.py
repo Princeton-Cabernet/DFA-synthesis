@@ -1,3 +1,5 @@
+"DFA synthesis for data plane. © Princeton University. License: AGPLv3"
+
 from ast import If
 import traceback
 from z3 import *

@@ -1,3 +1,5 @@
+"DFA synthesis for data plane. © Princeton University. License: AGPLv3"
+
 from z3 import *
 import sys
 import json

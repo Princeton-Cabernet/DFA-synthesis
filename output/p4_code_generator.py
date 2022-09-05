@@ -1,3 +1,26 @@
+"DFA synthesis for data plane. © Princeton University. License: AGPLv3"
+
+copyright_header="""
+// vim: syntax=P4
+/*
+    Synthesizing State Machines for Data Planes
+    
+    Copyright (C) 2022 Xiaoqi Chen, Andrew Johnson, Mengying Pan, David Walker; Princeton University
+    xiaoqic [at] cs.princeton.edu
+    
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+"""
+
 import sys
 import json
 import argparse
@@ -507,8 +530,9 @@ def generateP4(input, config, warning, namespace='dfa_', reg_name='reg_DFA', reg
             }}
         }}
     """
-    
+
     print(f"""
+    {copyright_header}
     {struct_definitions}
     control {namespace}Control(in ig_metadata_t ig_md, out int<{bitvecsize}> new_state){{
         {definitions}

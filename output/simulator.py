@@ -1,3 +1,5 @@
+"DFA synthesis for data plane. © Princeton University. License: AGPLv3"
+
 import sys
 import json
 import argparse
