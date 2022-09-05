@@ -85,42 +85,6 @@ class Pred:
         casted_pred_const=-int(pred_const)
         return f'({pred_state} + {pred_sym} {op_str} {casted_pred_const})'
 
-    def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.sym_opt == "s1":
-            pred_sym = symbol_1
-        elif self.sym_opt == "s2":
-            pred_sym = symbol_2
-        elif self.sym_opt == "const":
-            pred_sym = 0
-        else:
-            if self.warning:
-                warnings.warn("Null in predicate sym.")
-            pred_sym = 0
-        if self.state_opt == "s1":
-            pred_state = pre_state_1
-        elif self.state_opt == "s2":
-            pred_state = pre_state_2
-        elif self.state_opt == "const":
-            pred_state = 0
-        else:
-            if self.warning:
-                warnings.warn("Null in predicate state.")
-            pred_state = 0
-        pred_const = 0 if self.const == None else self.const
-        global bitvecsize
-        pred_arg = sign(pred_state + pred_sym + pred_const, bitvecsize)
-        if self.op == "eq":
-            return pred_arg == 0
-        elif self.op == "ge":
-            return pred_arg >= 0
-        elif self.op == "le":
-            return pred_arg <= 0
-        elif self.op == "neq":
-            return pred_arg != 0
-        else:
-            warnings.warn("Null in predicate operator.")
-            return pred_arg == 0
-
 class Arith:
     def __init__(self, op, sym_opt, sym_const, state_opt, state_const, warning):
         self.op = op
@@ -193,69 +157,6 @@ class Arith:
             arith_res =  f'({arith_sym} + {arith_state})'
         return arith_res
 
-    def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        if self.sym_opt == "s1":
-            arith_sym = symbol_1
-        elif self.sym_opt == "s2":
-            arith_sym = symbol_2
-        elif self.sym_opt == "const":
-            if self.sym_const != None:
-                arith_sym = self.sym_const
-            else:
-                if self.warning:
-                    warnings.warn("Null in arithmetic symbol constant.")
-                arith_sym = 0
-        else:
-            if self.warning:
-                warnings.warn("Null in arithmetic symbol.")
-            arith_sym = 0
-        if self.state_opt == "s1":
-            arith_state = pre_state_1
-        elif self.state_opt == "s2":
-            arith_state = pre_state_2
-        elif self.state_opt == "const":
-            if self.state_const != None:
-                arith_state = self.state_const
-            else:
-                if self.warning:
-                    warnings.warn("Null in arithmetic symbol constant.")
-                arith_state = 0
-        else:
-            if self.warning:
-                warnings.warn("Null in arithmetic state.")
-            arith_state = 0
-        if self.op == "plus":
-            arith_res = arith_sym + arith_state
-        elif self.op == "xor":
-            arith_res =  arith_sym ^ arith_state
-        elif self.op == "and":
-            arith_res =  arith_sym & arith_state
-        elif self.op == "or":
-            arith_res =  arith_sym | arith_state
-        elif self.op == "sub":
-            arith_res =  arith_sym - arith_state
-        elif self.op == "subr":
-            arith_res = arith_state - arith_sym
-        elif self.op == "nand":
-            arith_res =  ~ (arith_sym & arith_state)
-        elif self.op == "andca":
-            arith_res =  (~ arith_sym) & arith_state
-        elif self.op == "andcb":
-            arith_res =  arith_sym & (~ arith_state)
-        elif self.op == "nor":
-            arith_res =  ~ (arith_sym | arith_state)
-        elif self.op == "orca":
-            arith_res =  (~ arith_sym) | arith_state
-        elif self.op == "orcb":
-            arith_res =  arith_sym | (~ arith_state)
-        elif self.op == "xnor":
-            arith_res =  ~ (arith_sym ^ arith_state)
-        else:
-            if self.warning:
-                warnings.warn("Null in arithmetic operator.")
-            arith_res =  arith_sym + arith_state
-        return unsign(arith_res, bitvecsize)
-
 class RegAct:
     def __init__(self, preds, ariths, logic_ops, state_1_is_main, warning):
         self.preds = [Pred(warning=warning, **p) for p in preds]
@@ -305,20 +206,6 @@ class RegAct:
         arith_stmts=[a.to_p4_stmt(namespace) for a in self.ariths]
         if len(self.ariths) == 4:
             if len(self.logic_ops) == 2:
-                # if self.warning:
-                #     warnings.warn("Tofino Compiler might not like the four-branch code we generate. Need to use nested if-s.")
-                # COND_BRANCH=f"""
-                # if({pred_combos_stmt[0]}){{
-                #     value.lo={arith_stmts[0]};
-                # }}else{{
-                #     value.lo={arith_stmts[1]};
-                # }}
-                # if({pred_combos_stmt[1]}){{
-                #     value.hi={arith_stmts[2]};
-                # }}else{{
-                #     value.hi={arith_stmts[3]};
-                # }}
-                # """ 
                 COND_BRANCH=f"""
                 if({pred_combos_stmt[0]}){{
                     if({pred_combos_stmt[1]}){{
@@ -366,35 +253,6 @@ class RegAct:
         template=template.replace('%RETURN_STMT%',RETURN_STMT)
 
         return template;
-
-    def execute(self, pre_state_1, pre_state_2, symbol_1, symbol_2):
-        pred_conds = [p.execute(pre_state_1, pre_state_2, symbol_1, symbol_2) for p in self.preds]
-        arith_exprs = [a.execute(pre_state_1, pre_state_2, symbol_1, symbol_2) for a in self.ariths]
-        pred_combos = []
-        for i in range(len(self.logic_ops)):
-            if self.logic_ops[i] == "left":
-                pred_combos.append(pred_conds[0])
-            elif self.logic_ops[i] == "right":
-                pred_combos.append(pred_conds[1])
-            elif self.logic_ops[i] == "and":
-                pred_combos.append(pred_conds[0] & pred_conds[1])
-            elif self.logic_ops[i] == "or":
-                pred_combos.append(pred_conds[0] | pred_conds[1])
-            else:
-                if self.warning:
-                    warnings.warn("Null in logical operator.")
-                pred_combos.append(pred_conds[0])
-        post_state_2 = None
-        if len(self.ariths) == 4:
-            if len(self.logic_ops) == 2:
-                post_state_1 = arith_exprs[0] if pred_combos[0] else arith_exprs[2]
-                post_state_2 = arith_exprs[1] if pred_combos[1] else arith_exprs[3]
-            else:
-                post_state_1 = arith_exprs[0] if pred_combos[0] else arith_exprs[2]
-                post_state_2 = arith_exprs[1] if pred_combos[0] else arith_exprs[3]
-        else:
-            post_state_1 = arith_exprs[0] if pred_combos[0] else arith_exprs[1]
-        return post_state_1, post_state_2, self.state_1_is_main
 
 def string_to_pair(s):
     return tuple(s.rsplit('_', 1))
