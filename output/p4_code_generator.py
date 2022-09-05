@@ -433,6 +433,7 @@ def main():
     input=json.load(open(args.input))
     config=json.load(open(args.config))
 
+    check_names(input)
     generateP4(input, config, args.warning)
 
 if __name__ == '__main__':
