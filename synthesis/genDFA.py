@@ -282,7 +282,7 @@ def orderByState(transitions):
 def pair_to_string(state_pair):
     return "%s_%d" % state_pair
 
-def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes, main_fixed, jsonpath=None):
+def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_regact, bitvecsize, timeout, probe, num_split_nodes, main_fixed, jsonpath=None, to_smt2=None):
     t0 = time.time()
     states, symbols, transitions = input["states"], input["sigma"], input["transitions"]
 
@@ -404,6 +404,13 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
         #     sys.stderr.write("Unsat at the %d th symbol.\n" % (num_lists_solved))
         #     print("-1")
         #     sys.exit()
+    if to_smt2!=None:
+        dump_text=s.to_smt2()
+        with(open(to_smt2,"w")) as f:
+            f.write(dump_text)
+        nline=len(dump_text.split("\n"))
+        sys.stderr.write(f"Wrote smtlib format to {to_smt2}, total {nline} lines.\n")
+        return #no need to synthesis
 
     if s.check() == sat:
         #print(s.assertions())
@@ -451,6 +458,7 @@ if __name__ == '__main__':
     parser.add_argument('--probe', action='store_true')
     parser.add_argument('--num_split_nodes', type=int, default = 1)
     parser.add_argument('--jsonpath', type=str, default=None)
+    parser.add_argument('--to_smt2', type=str, default=None)
     parser.add_argument('--main_fixed', action='store_true')
     args=parser.parse_args()
 
@@ -459,7 +467,7 @@ if __name__ == '__main__':
 
     input_json=json.load(open(args.input))
     createDFA(input_json, args.arith_bin, args.num_arith, args.two_cond, args.two_slot, args.four_branch, args.num_regact,
-             args.bitvecsize, args.timeout, args.probe, args.num_split_nodes, args.main_fixed, args.jsonpath)
+             args.bitvecsize, args.timeout, args.probe, args.num_split_nodes, args.main_fixed, args.jsonpath, args.to_smt2)
 
 # Classic cases:
 # TwoTernary: {arith_bin = True, two_cond = True, two_slot = True, four_branch = True}
