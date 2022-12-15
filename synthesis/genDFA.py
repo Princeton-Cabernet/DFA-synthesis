@@ -385,14 +385,18 @@ def createDFA(input, arith_bin, num_arith, two_cond, two_slot, four_branch, num_
             s1explist.append(s1exp)
         if two_slot:
             if not main_fixed:
-                constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
+                transition_possibilities = [And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
                     states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist), \
-                    states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist)) for o in tuple_options]))
+                    states_1_is_main[(dst_state, o)] == regact_id[symbol].gen_val(mainlist)) for o in tuple_options]
             else:
-                constr_all.append(Or([And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
-                    states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist)) for o in tuple_options]))
+                transition_possibilities = [And(states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist), \
+                    states_2[(dst_state, o)] == regact_id[symbol].gen_val(s2explist)) for o in tuple_options]
         else:
-            constr_all.append(Or([states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]))
+                transition_possibilities = [states_1[(dst_state, o)] == regact_id[symbol].gen_val(s1explist) for o in tuple_options]
+        if len(transition_possibilities)==1:
+            constr_all.append(transition_possibilities[0])
+        else:
+            constr_all.append(Or(transition_possibilities))
         s.add(constr_all)
         if probe: 
             constraints.extend(constr_all)
